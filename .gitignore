@@ -1,0 +1,33 @@
+# Python environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Testing and tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Generated datasets and models
+data/raw/
+data/processed/
+models/
+*.dem
+*.pkl
+*.joblib
+
+# macOS and editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Generated outputs
+outputs/
