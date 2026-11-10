@@ -113,6 +113,42 @@ weapon-specific recoil compensation, and target acquisition are not implemented.
 
 ## Validation and next steps
 
+### Batch replay validation
+
+Create a JSON array of jobs (see `examples/replay-validation.json`). Each job
+requires `demo`, an exact string `steamid`, and an explicit numeric `tickrate`.
+Demo paths are relative to the manifest file. Add jobs for additional matches
+or players; duplicate replay-path/player pairs are rejected.
+
+```sh
+python -m aimguard.batch examples/replay-validation.json --output outputs/validation/cache-three-players --max-plots 3
+```
+
+The destination must be new, preventing stale results from being mistaken for
+fresh analysis. Each job exports the usual analysis artifacts in its own folder.
+`summary.md` compares coverage and window counts; `summary.json` also records
+excluded event counts, round anomalies, skipped groups, errors, and individual
+window violations. One failed job does not stop the remaining jobs.
+
+The validator checks every exported window for active samples, one round and
+segment, no selected-player death crossings or recording gaps, shot matching,
+sample bounds, and finite features. A nonzero exit code indicates analysis errors
+or validation violations. Empty active coverage, zero shooting windows, and round
+event anomalies produce warnings requiring review; warnings alone exit zero.
+Inspect the representative plots manually, including sharp turns and clipped
+windows. Passing structural checks does not establish detection accuracy.
+
+The included manifest selects three players from the one locally available
+Cache replay. That exercises multiple players but is still only one match.
+Distinct replay contents are counted by SHA-256 so copies cannot inflate match
+coverage. Additional replay files are needed for cross-match validation.
+
+### Automatic tests
+
+GitHub Actions runs `python -m pytest -q` on pushes and pull requests using
+Python 3.12 on Linux. Tests use small fixtures and do not require private demos.
+Real replay validation remains a separate local command.
+
 Tests cover death-event lag, respawn, round transitions, missing/duplicate events,
 invalid samples, gaps, exact event identity matching, stable deduplication,
 window-boundary movement, and irregular-timestamp jerk.

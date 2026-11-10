@@ -301,6 +301,10 @@ def load_gameplay_demo(path, steamid):
     parser = DemoParser(str(path))
     ticks = parser.parse_ticks(['yaw', 'pitch', 'health', 'life_state', 'team_num', 'X', 'Y', 'Z'],
                                players=[int(steamid)])
+    required = {'yaw', 'pitch', 'health', 'life_state', 'team_num'}
+    if ticks.empty or not required.issubset(ticks) or ticks[list(required)].dropna(how='all').empty:
+        raise ValueError(f'No usable gameplay telemetry for SteamID {steamid}; '
+                         'a player listing alone does not establish recorded gameplay')
     events = {name: parser.parse_event(name) for name in ROUND_EVENTS + COMBAT_EVENTS}
     return ticks, events
 
@@ -323,6 +327,7 @@ def plot_engagements(player, windows, output, tickrate, limit=10):
         axes[2].plot(time, speed)
         for axis, label in zip(axes, ['Yaw (deg, unwrapped)', 'Pitch (deg)', 'Speed (deg/s)']):
             axis.set_ylabel(label)
+            axis.ticklabel_format(axis='y', style='plain', useOffset=False)
             for i, shot in enumerate(window['shot_ticks']):
                 axis.axvline((shot - window['shot_ticks'][0]) / tickrate, color='crimson', alpha=0.4,
                              lw=0.8, label='Weapon fire' if i == 0 else None)
@@ -338,6 +343,44 @@ def plot_engagements(player, windows, output, tickrate, limit=10):
     return paths
 
 
+def analyze_demo(demo, steamid, output, tickrate=64.0, pre_s=0.5, post_s=0.5,
+                 shot_gap_s=0.5, max_plots=10):
+    """Run one replay/player analysis and return the exported report."""
+    demo, output = Path(demo), Path(output)
+    positive_finite(tickrate=tickrate, shot_gap_s=shot_gap_s)
+    if not all(np.isfinite(v) and v >= 0 for v in (pre_s, post_s)):
+        raise ValueError('pre/post seconds must be finite and nonnegative')
+    if max_plots < 0:
+        raise ValueError('max-plots must be nonnegative')
+    frame, events = load_gameplay_demo(demo, steamid)
+    player, matched, quality = segment_gameplay(frame, events, steamid, tickrate)
+    windows, skipped = extract_engagements(player, matched, tickrate,
+                                           pre_s, post_s, shot_gap_s)
+    output.mkdir(parents=True, exist_ok=True)
+    player.to_csv(output / 'telemetry.csv', index=False)
+    (output / 'events.json').write_text(matched.to_json(orient='records', indent=2) + '\n')
+    plots = plot_engagements(player, windows, output, tickrate, max_plots) if max_plots else []
+    digest = hashlib.sha256()
+    with demo.open('rb') as source:
+        for block in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(block)
+    report = {
+        'feature_version': FEATURE_VERSION, 'source': str(demo), 'source_sha256': digest.hexdigest(),
+        'steamid': steamid, 'assumed_tickrate_hz': tickrate,
+        'configuration': {'pre_seconds': pre_s, 'post_seconds': post_s,
+                          'shot_gap_seconds': shot_gap_s, 'max_plots': max_plots},
+        'dependencies': {name: importlib.metadata.version(name) for name in ('demoparser2', 'numpy', 'pandas', 'matplotlib')},
+        'note': 'Shot-centered descriptive windows; no visibility checks, cheat classification, or punishment decisions. Padded windows may overlap.',
+        'correction_definition': 'Adjacent yaw/pitch steps with opposite signs, both at least 0.05 degrees; not verified target-relative corrections.',
+        'source_event_counts': {name: len(events[name]) for name in ROUND_EVENTS + COMBAT_EVENTS},
+        'data_quality': quality, 'engagement_count': len(windows), 'engagements': windows,
+        'grouped_shots_in_published_windows': sum(w['shot_count'] for w in windows),
+        'skipped_engagements': skipped, 'plots': plots,
+    }
+    (output / 'report.json').write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+    return report
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='AimGuard v0.3 shot-centered replay diagnostics')
     ap.add_argument('demo', type=Path)
@@ -350,39 +393,13 @@ def main(argv=None):
     ap.add_argument('--output', type=Path, default=Path('outputs/v03'))
     args = ap.parse_args(argv)
     try:
-        positive_finite(tickrate=args.tickrate, shot_gap_s=args.shot_gap_seconds)
-        if not all(np.isfinite(v) and v >= 0 for v in (args.pre_seconds, args.post_seconds)):
-            raise ValueError('pre/post seconds must be finite and nonnegative')
-        if args.max_plots < 0:
-            raise ValueError('max-plots must be nonnegative')
-        frame, events = load_gameplay_demo(args.demo, args.steamid)
-        player, matched, quality = segment_gameplay(frame, events, args.steamid, args.tickrate)
-        windows, skipped = extract_engagements(player, matched, args.tickrate,
-                                               args.pre_seconds, args.post_seconds, args.shot_gap_seconds)
+        report = analyze_demo(args.demo, args.steamid, args.output, args.tickrate,
+                              args.pre_seconds, args.post_seconds, args.shot_gap_seconds,
+                              args.max_plots)
     except (ValueError, ImportError) as exc:
         ap.error(str(exc))
-    args.output.mkdir(parents=True, exist_ok=True)
-    player.to_csv(args.output / 'telemetry.csv', index=False)
-    (args.output / 'events.json').write_text(matched.to_json(orient='records', indent=2) + '\n')
-    plots = plot_engagements(player, windows, args.output, args.tickrate, args.max_plots) if args.max_plots else []
-    digest = hashlib.sha256()
-    with args.demo.open('rb') as source:
-        for block in iter(lambda: source.read(1024 * 1024), b''):
-            digest.update(block)
-    report = {
-        'feature_version': FEATURE_VERSION, 'source': str(args.demo), 'source_sha256': digest.hexdigest(),
-        'steamid': args.steamid, 'assumed_tickrate_hz': args.tickrate,
-        'configuration': {'pre_seconds': args.pre_seconds, 'post_seconds': args.post_seconds,
-                          'shot_gap_seconds': args.shot_gap_seconds, 'max_plots': args.max_plots},
-        'dependencies': {name: importlib.metadata.version(name) for name in ('demoparser2', 'numpy', 'pandas', 'matplotlib')},
-        'note': 'Shot-centered descriptive windows; no visibility checks, cheat classification, or punishment decisions. Padded windows may overlap.',
-        'correction_definition': 'Adjacent yaw/pitch steps with opposite signs, both at least 0.05 degrees; not verified target-relative corrections.',
-        'source_event_counts': {name: len(events[name]) for name in ROUND_EVENTS + COMBAT_EVENTS},
-        'data_quality': quality, 'engagement_count': len(windows), 'engagements': windows,
-        'grouped_shots_in_published_windows': sum(w['shot_count'] for w in windows),
-        'skipped_engagements': skipped, 'plots': plots,
-    }
-    (args.output / 'report.json').write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+    quality = report['data_quality']
+    windows, skipped = report['engagements'], report['skipped_engagements']
     print(f"Active samples: {quality['active_samples']}/{quality['normalized_samples']}; "
           f"segments: {quality['segments']}; shot-centered windows: {len(windows)}; skipped: {len(skipped)}. Results: {args.output}")
 

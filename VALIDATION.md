@@ -24,3 +24,33 @@ compensation, or detection accuracy. Padded shot windows can overlap. The older
 
 Replay data and generated outputs remain excluded from version control. Run
 the command in README.md to reproduce the analysis locally.
+
+## Batch validation follow-up
+
+The batch workflow was run on three players in the same Cache replay:
+
+| Player | Active samples | Segments | Windows | Boundary violations |
+| --- | ---: | ---: | ---: | ---: |
+| Slender-r | 97,881 | 23 | 70 | 0 |
+| R4N | 94,160 | 23 | 94 | 0 |
+| Lcs | 109,834 | 23 | 110 | 0 |
+
+All 274 windows passed the structural checks. All three jobs retain warnings
+for the previously observed malformed round-event sequence. The nine generated
+representative plots were reviewed: labels and shot markers render clearly,
+including stationary aim and burst windows. Stationary samples and sharp turns
+are observations, not evidence of cheating or proof of telemetry fidelity.
+
+An earlier batch attempt included extazzy, a player returned by the replay's
+player listing. The filtered parser returned identity/tick columns without
+gameplay properties; an unfiltered parse contained null gameplay values for
+that player's rows. The batch recorded the error and continued. The loader now
+reports that case explicitly, with regression tests for both missing properties
+and all-null properties. Listing a player does not establish usable gameplay.
+
+The full local suite now has 67 passing tests. Batch tests include corrupt-window
+detection, per-job failure isolation, CLI failure exit codes, empty-window
+warnings, exact SteamID manifest validation, relative paths, duplicate rejection,
+and refusing existing output directories. Automated fixtures do not replace real
+replay validation. Only one distinct replay has been evaluated; additional
+matches are still required before claiming cross-match reliability.
