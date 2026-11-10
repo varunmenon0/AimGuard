@@ -10,8 +10,8 @@ from aimguard.core import extract_features
 
 
 def normalize_ticks(frame: pd.DataFrame, steamid: str, tickrate: float) -> pd.DataFrame:
-    if tickrate <= 0:
-        raise ValueError('tickrate must be positive')
+    if not np.isfinite(tickrate) or tickrate <= 0:
+        raise ValueError('tickrate must be finite and positive')
     required = {'tick', 'steamid', 'yaw', 'pitch'}
     missing = required.difference(frame.columns)
     if missing:
@@ -22,7 +22,7 @@ def normalize_ticks(frame: pd.DataFrame, steamid: str, tickrate: float) -> pd.Da
     for key in ('tick', 'yaw', 'pitch'):
         player[key] = pd.to_numeric(player[key], errors='coerce')
     player = player.replace([np.inf, -np.inf], np.nan).dropna(subset=['tick', 'yaw', 'pitch'])
-    player = player.sort_values('tick').drop_duplicates('tick', keep='last')
+    player = player.sort_values('tick', kind='stable').drop_duplicates('tick', keep='last')
     if player.empty:
         raise ValueError('No valid ticks after cleaning')
     player['time_s'] = (player['tick'] - player['tick'].iloc[0]) / tickrate
@@ -30,16 +30,23 @@ def normalize_ticks(frame: pd.DataFrame, steamid: str, tickrate: float) -> pd.Da
 
 
 def window_features(player: pd.DataFrame, tickrate: float, window_s: float = 2.0):
-    """Nonoverlapping windows; split at gaps rather than interpolating them."""
-    if window_s <= 0:
-        raise ValueError('window_s must be positive')
+    """Absolute tick bins, with one preceding sample to retain boundary movement.
+
+    Shared samples are context only: each intersample movement belongs to the
+    bin containing its ending tick. Gaps are never interpolated.
+    """
+    if not np.isfinite(tickrate) or tickrate <= 0:
+        raise ValueError('tickrate must be finite and positive')
+    if not np.isfinite(window_s) or window_s <= 0:
+        raise ValueError('window_s must be finite and positive')
     if player.empty:
         return []
     results = []
-    # Absolute tick bins keep the windows deterministic across calls.
+    player = player.sort_values('tick', kind='stable').reset_index(drop=True)
     window_ticks = max(1, round(window_s * tickrate))
-    for _, chunk in player.groupby((player['tick'].astype('int64') - int(player['tick'].iloc[0])) // window_ticks):
-        chunk = chunk.sort_values('tick')
+    for _, chunk in player.groupby(player['tick'].astype('int64') // window_ticks):
+        if chunk.index[0] > 0:
+            chunk = pd.concat([player.iloc[[chunk.index[0] - 1]], chunk])
         if len(chunk) < 8:
             continue
         # Segment around gaps that the core extractor rejects.
@@ -68,8 +75,8 @@ def trajectory_diagnostics(player: pd.DataFrame, tickrate: float, max_gap_s: flo
     Speed at a sample describes movement since the preceding sample. It is NaN
     at the beginning of a segment, including after a recording gap.
     """
-    if tickrate <= 0 or max_gap_s <= 0:
-        raise ValueError('tickrate and max_gap_s must be positive')
+    if not all(np.isfinite(v) and v > 0 for v in (tickrate, max_gap_s)):
+        raise ValueError('tickrate and max_gap_s must be finite and positive')
     result = player.copy().reset_index(drop=True)
     if result.empty:
         raise ValueError('No telemetry to analyze')

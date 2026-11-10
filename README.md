@@ -1,37 +1,131 @@
-# AimGuard v0.1 — Server-Side Aim Behavior Prototype
+# AimGuard v0.3 — Shot-Centered Replay Analysis
 
-A small, runnable **offline proof of concept** for analyzing view-angle telemetry. This is **not** a deployable anti-cheat and has not been validated on real player or cheat data.
+An offline CS2 telemetry prototype. It segments active rounds and player lives,
+matches player combat events, and describes view-angle movement around shots.
+It does not classify players as cheating and is not a deployable anti-cheat.
 
-## Quick start (Windows PowerShell)
+## Setup
+
+Python 3.12 is used for local validation. From this repository:
 
 ```powershell
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m pytest -q
-python -m aimguard.demo --output outputs/synthetic_report.json
 ```
 
-If `py -3` is unavailable, use `python -m venv .venv`.
+On macOS/Linux, use `python3 -m venv .venv` and `source .venv/bin/activate`.
 
-## What is implemented
-- Degree-aware yaw wrap handling, timestamp validation, and gap rejection.
-- Eight trajectory features: mean and 95th-percentile speed, mean absolute acceleration, 95th-percentile absolute jerk, path efficiency, average turn angle, speed variation, and near-stop fraction.
-- Reproducible synthetic trajectory generator (two deliberately different styles).
-- Gradient-boosted classifier and **session-separated** train/test split.
-- JSON evaluation report and automated tests.
+## Analyze the existing Cache replay
 
-## What is not implemented
-- CS2 demo parsing or live game server ingestion.
-- Target visibility, acquisition latency, target-relative tracking, weapon/recoil context.
-- Real labeled datasets, calibrated scores, statistically defensible recall/FPR claims.
-- Production inference, player-level risk aggregation, review UI, privacy controls.
+Find a player's SteamID with the existing diagnostic command:
 
-## Data contract
-`extract_features(timestamps, yaw, pitch)` expects three equal-length numeric arrays: monotonic seconds, yaw degrees, and pitch degrees. Missing samples or gaps greater than 250 ms must be segmented upstream. Pitch/yaw are server-observable *only if the game server actually records or exposes them*.
+```sh
+python -m aimguard.cs2 data/raw/your-end-vs-damajuana-m1-cache.dem --list-players
+```
 
-## Next milestone
-Add a CS2 demo adapter that exports normalized telemetry with `match_id`, `player_id`, `tick`, `timestamp`, `yaw`, `pitch`, and contextual events. Verify each field against the parser and the server's actual visibility/authority. Then build trajectory plots and collect properly labeled, consented/authorized samples before evaluating any real detection claims.
+Run v0.3 (the selected player below is the one used in the saved analysis):
 
-## Ethics and deployment
-Never automatically punish players from this prototype. Synthetic performance is not evidence of real-world performance. Do not store unnecessary player identifiers, and provide review and appeal mechanisms before any deployment.
+```sh
+python -m aimguard.gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v03/slender
+```
+
+Optional settings: `--pre-seconds 0.5`, `--post-seconds 0.5`,
+`--shot-gap-seconds 0.5`, and `--max-plots 10`. Use `--max-plots 0` to skip plots.
+Timing is an explicit assumption: verify the demo's tick rate before interpreting
+rates or durations. No additional demo download or classifier training is needed.
+
+Outputs:
+
+- `telemetry.csv`: selected-player samples, including excluded rows, round and
+  segment IDs, active flags, and exclusion reasons. Invalid angles are preserved
+  as boundaries rather than removed and joined across. Angles are exported as
+  float64 to preserve parser precision for derivative recalculation.
+- `events.json`: selected-player shots, incoming/outgoing damage, and deaths,
+  with explicit player roles and exact string SteamIDs. Segment `-1` means an
+  event is outside a valid active segment.
+- `report.json`: features for every published window, skipped groups and reasons,
+  sample coverage, life-state verification, unusual round events, configuration,
+  source SHA-256, feature version, and dependency versions.
+- `engagement_XXXX.png`: close-up yaw, pitch, and speed plots with shot markers;
+  the first ten windows are plotted by default. The report lists generated plots.
+
+Generated data and outputs are ignored by Git. Use a separate output directory
+for each player or configuration to keep analyses distinct.
+
+## Segmentation rules
+
+- `round_start` closes any preceding active interval and enters freeze time.
+  `round_freeze_end` opens active play. `round_end` closes it; its tick is excluded.
+  No freeze-end means that round is excluded. Events are not paired by list index.
+- A freeze-end without a start opens a flagged inferred round. Duplicate
+  freeze-ends are reported and ignored. Missing round ends close at the next
+  start or recording end and are reported. For simultaneous transitions, an end
+  is processed before a start, then a freeze-end.
+- Positive health must agree with life state `0`; the input's life-state/health
+  distribution is included in the report. Positive health with another finite
+  life-state code fails verification instead of silently changing semantics.
+  Known states `1` and `2` are non-alive. Unknown or nonfinite samples are excluded.
+- Only teams `2` and `3`, positive health, valid life state `0`, finite required
+  telemetry, and pitch within [-90, 90] are eligible during active play.
+- Victim death events exclude the death tick, even with delayed health updates.
+  A death latch clears only after an observed non-alive to alive transition or
+  a new active round. Killing another player does not end the selected player's life.
+- Invalid samples, ineligible periods, round changes, and recording gaps over
+  250 ms split segments. Duplicate ticks keep the last input observation using a
+  stable sort. Unlocatable invalid tick values cause an error.
+
+## Shot-centered windows and features
+
+Nearby selected-player `weapon_fire` events are grouped within each segment;
+successive shots at most `--shot-gap-seconds` apart belong to one group.
+Pre/post context is clipped to that segment. Groups with fewer than eight samples
+or without samples bracketing their shots are explicitly skipped. Padded windows
+from distinct groups may overlap; their statistics are not independent trials.
+
+Each window contains mean/p95 angular speed, mean absolute speed acceleration,
+p95 absolute speed jerk, path efficiency, mean turn angle (radians), speed CV, and
+near-stop fraction (speed below 2 deg/s). Angular movement uses the Euclidean
+yaw/pitch coordinate approximation, not mouse input or target-relative error.
+Acceleration and jerk describe scalar speed changes, not vector acceleration.
+Yaw wrapping and irregular sample intervals are handled by the extractor.
+
+Two additional counts describe adjacent yaw/pitch steps reversing sign when both
+steps are at least 0.05 degrees. These are descriptive reversal counts, not
+verified aim corrections. Damage and kill event counts describe the selected
+player's events inside the window, not causal attribution to a particular shot.
+
+Weapon fire demonstrates shooting activity, not an encounter with a visible
+enemy. Positions are retained for future context but visibility, enemy targeting,
+weapon-specific recoil compensation, and target acquisition are not implemented.
+
+## Other entry points
+
+- `python -m aimguard.cs2 DEMO --steamid ID --output outputs/cs2` retains the older
+  unfiltered whole-replay diagnostic workflow. Its fixed windows use absolute
+  tick bins and one shared preceding sample to retain boundary movement. It
+  does not apply v0.3 gameplay filtering.
+- `python -m aimguard.demo --output outputs/synthetic_report.json` retains the
+  separate synthetic classifier smoke test. Its intentionally different synthetic
+  styles and session split do not establish real-world detection performance.
+- `scripts/inspect_demo.py` is the existing local property/event inspection script.
+
+## Validation and next steps
+
+Tests cover death-event lag, respawn, round transitions, missing/duplicate events,
+invalid samples, gaps, exact event identity matching, stable deduplication,
+window-boundary movement, and irregular-timestamp jerk.
+
+The existing Cache replay was validated with demoparser2 0.42.0, NumPy 2.5.4,
+pandas 3.1.1, and Matplotlib 3.11.2. Each report records its actual runtime versions.
+
+Next, visually review the shot windows and excluded periods, then add target
+positions/visibility and weapon context. A real labeled dataset, splits by player
+and match, calibrated scores, and false-positive estimates are prerequisites for
+detection evaluation. Live server ingestion, model inference, player-level risk
+aggregation, and review tooling remain future work.
+
+Never automatically punish players from this prototype. Keep unnecessary player
+identifiers out of shared artifacts; provide review and appeal mechanisms before
+any deployment.
