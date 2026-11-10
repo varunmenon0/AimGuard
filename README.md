@@ -143,6 +143,32 @@ Cache replay. That exercises multiple players but is still only one match.
 Distinct replay contents are counted by SHA-256 so copies cannot inflate match
 coverage. Additional replay files are needed for cross-match validation.
 
+### Review a player's shooting windows
+
+To go from a demo to a review report in one command, run:
+
+```sh
+python -m aimguard.replay data/raw/your-end-vs-damajuana-m1-cache.dem --tickrate 64 --output outputs/review/cache
+```
+
+Choose a player from the numbered list, then open the printed `review.html` path.
+Use `--steamid` to select a player directly for scripted runs. Verify the tick
+rate for your recording and choose a new output folder for each run.
+
+After analyzing a replay, pass the player's output folder to the review command.
+For a batch run, use one of the `job_XXXX` folders.
+
+```sh
+python -m aimguard.review outputs/v03/slender
+```
+
+Open the resulting `review.html` in a browser. Use the window selector or
+Previous and Next to inspect yaw, pitch, angular speed, and shot markers. The
+report contains every published window, even if PNG export was disabled. It
+works offline and embeds selected-player telemetry, so share it only where you
+would share the underlying analysis. Use `--output` to choose a new filename
+when rebuilding a report.
+
 ### Automatic tests
 
 GitHub Actions runs `python -m pytest -q` on pushes and pull requests using
