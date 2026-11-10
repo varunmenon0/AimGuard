@@ -8,6 +8,8 @@ def angle_delta(degrees):
 
 def extract_features(timestamps, yaw, pitch):
     t, y, p = [np.asarray(a, dtype=float) for a in (timestamps, yaw, pitch)]
+    if any(a.ndim != 1 for a in (t, y, p)):
+        raise ValueError("Samples must be one-dimensional arrays")
     if not (len(t) == len(y) == len(p)) or len(t) < 8:
         raise ValueError("Need at least 8 equal-length samples")
     if not (np.isfinite(t).all() and np.isfinite(y).all() and np.isfinite(p).all()):
@@ -21,7 +23,8 @@ def extract_features(timestamps, yaw, pitch):
     steps = np.column_stack((dy, dp))
     speed = np.linalg.norm(steps, axis=1) / dt
     accel = np.diff(speed) / ((dt[1:] + dt[:-1]) / 2)
-    jerk = np.diff(accel) / ((dt[2:] + dt[:-2]) / 2)
+    # Velocities sit at interval midpoints; accelerations at their midpoints.
+    jerk = np.diff(accel) / ((dt[:-2] + 2 * dt[1:-1] + dt[2:]) / 4)
     total = np.linalg.norm(steps, axis=1).sum()
     net = np.linalg.norm(steps.sum(axis=0))
     a, b = steps[:-1], steps[1:]
