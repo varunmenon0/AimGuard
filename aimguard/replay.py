@@ -31,6 +31,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('demo', type=Path)
     parser.add_argument('--steamid', help='Select a player directly instead of showing the menu')
+    parser.add_argument('--weapon-mode', choices=['firearms', 'all'], default='firearms')
+    parser.add_argument('--near-shot-seconds', type=float, default=0.1)
     parser.add_argument('--tickrate', required=True, type=float, help='Assumed ticks per second')
     parser.add_argument('--output', type=Path, required=True, help='New analysis folder')
     args = parser.parse_args(argv)
@@ -42,7 +44,8 @@ def main(argv=None):
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with TemporaryDirectory(dir=args.output.parent) as temporary:
             staging = Path(temporary) / 'analysis'
-            report = analyze_demo(args.demo, steamid, staging, args.tickrate, max_plots=0)
+            report = analyze_demo(args.demo, steamid, staging, args.tickrate, max_plots=0,
+                                  weapon_mode=args.weapon_mode, near_shot_s=args.near_shot_seconds)
             build_review(staging, staging / 'review.html')
             args.output.mkdir()
             for artifact in staging.iterdir():

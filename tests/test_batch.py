@@ -17,7 +17,7 @@ def fixture():
         'round_start': pd.DataFrame({'tick': [0]}),
         'round_freeze_end': pd.DataFrame({'tick': [10]}),
         'round_end': pd.DataFrame({'tick': [127]}),
-        'weapon_fire': pd.DataFrame({'tick': [60], 'user_steamid': ['123']}),
+        'weapon_fire': pd.DataFrame({'tick': [60], 'weapon': ['weapon_ak47'], 'user_steamid': ['123']}),
         'player_hurt': pd.DataFrame(columns=['tick']),
         'player_death': pd.DataFrame(columns=['tick']),
     }

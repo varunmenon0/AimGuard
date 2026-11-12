@@ -1,4 +1,4 @@
-# AimGuard v0.3 — Shot-Centered Replay Analysis
+# AimGuard v0.4 — Firearm Replay Analysis
 
 An offline CS2 telemetry prototype. It segments active rounds and player lives,
 matches player combat events, and describes view-angle movement around shots.
@@ -25,10 +25,10 @@ Find a player's SteamID with the existing diagnostic command:
 python -m aimguard.cs2 data/raw/your-end-vs-damajuana-m1-cache.dem --list-players
 ```
 
-Run v0.3 (the selected player below is the one used in the saved analysis):
+Run the current firearm analysis (the selected player below was used in earlier validation):
 
 ```sh
-python -m aimguard.gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v03/slender
+python -m aimguard.gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v04/slender
 ```
 
 Optional settings: `--pre-seconds 0.5`, `--post-seconds 0.5`,
@@ -64,7 +64,7 @@ for each player or configuration to keep analyses distinct.
   start or recording end and are reported. For simultaneous transitions, an end
   is processed before a start, then a freeze-end.
 - Positive health must agree with life state `0`; the input's life-state/health
-  distribution is included in the report. Positive health with another finite
+  distribution is included in the report. Positive health on teams 2 or 3 with another finite
   life-state code fails verification instead of silently changing semantics.
   Known states `1` and `2` are non-alive. Unknown or nonfinite samples are excluded.
 - Only teams `2` and `3`, positive health, valid life state `0`, finite required
@@ -77,6 +77,28 @@ for each player or configuration to keep analyses distinct.
   stable sort. Unlocatable invalid tick values cause an error.
 
 ## Shot-centered windows and features
+
+New analyses default to `--weapon-mode firearms`. The explicit firearm list
+excludes knives, utility, tasers, and unknown/missing weapon names. Use
+`--weapon-mode all` to include all weapon-fire events for diagnostics. Filtering
+occurs before shot grouping, and weapon changes split groups. Each window records
+its normalized weapon name. Reports record excluded event counts by weapon,
+and events.json records the selection flag independently of active-life coverage.
+
+Version 0.4 adds `movement_context` alongside the existing full-window features.
+`--near-shot-seconds` defaults to 0.1 seconds. A speed interval is near a shot
+when its ending tick is within that radius of any grouped shot. Remaining
+intervals are surrounding movement. Acceleration requires two consecutive speed
+intervals in the same category, and jerk requires three. Disjoint periods are
+never joined to calculate derivatives. Samples at category boundaries may
+therefore contribute to full-window derivatives only. Empty categories report
+null measurements and zero sample counts. Covered durations and counts are
+included for interpretation.
+
+This timing radius is configurable and has not been validated as a detection
+threshold. Replay reviews shade near-shot periods and show both summaries.
+Older reports still open with their original full-window measurements.
+
 
 Nearby selected-player `weapon_fire` events are grouped within each segment;
 successive shots at most `--shot-gap-seconds` apart belong to one group.
@@ -105,7 +127,7 @@ weapon-specific recoil compensation, and target acquisition are not implemented.
 - `python -m aimguard.cs2 DEMO --steamid ID --output outputs/cs2` retains the older
   unfiltered whole-replay diagnostic workflow. Its fixed windows use absolute
   tick bins and one shared preceding sample to retain boundary movement. It
-  does not apply v0.3 gameplay filtering.
+  does not apply gameplay filtering.
 - `python -m aimguard.demo --output outputs/synthetic_report.json` retains the
   separate synthetic classifier smoke test. Its intentionally different synthetic
   styles and session split do not establish real-world detection performance.
@@ -159,7 +181,7 @@ After analyzing a replay, pass the player's output folder to the review command.
 For a batch run, use one of the `job_XXXX` folders.
 
 ```sh
-python -m aimguard.review outputs/v03/slender
+python -m aimguard.review outputs/v04/slender
 ```
 
 Open the resulting `review.html` in a browser. Use the window selector or

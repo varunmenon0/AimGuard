@@ -20,7 +20,7 @@ def events(shots=(60, 70, 140, 170, 190, 240), deaths=(150,)):
         'round_start': pd.DataFrame({'tick': [0]}),
         'round_freeze_end': pd.DataFrame({'tick': [10]}),
         'round_end': pd.DataFrame({'tick': [245]}),
-        'weapon_fire': pd.DataFrame({'tick': list(shots), 'user_steamid': ['123'] * len(shots)}),
+        'weapon_fire': pd.DataFrame({'tick': list(shots), 'weapon': ['weapon_ak47'] * len(shots), 'user_steamid': ['123'] * len(shots)}),
         'player_death': pd.DataFrame({'tick': list(deaths), 'user_steamid': ['123'] * len(deaths),
                                       'attacker_steamid': ['456'] * len(deaths)}),
         'player_hurt': pd.DataFrame({'tick': [65, 75, 80], 'user_steamid': ['456', '123', '789'],
@@ -151,6 +151,15 @@ def test_life_state_semantics_must_agree_with_recording():
         segment_gameplay(frame, events(), '123')
 
 
+def test_unassigned_spawn_health_does_not_invalidate_playing_life_states():
+    frame = telemetry()
+    frame.loc[10:20, ['team_num', 'life_state', 'health']] = [0, 2, 100]
+    player, _, report = segment_gameplay(frame, events(), '123')
+    assert not player.loc[10:20, 'active'].any()
+    assert player.loc[21, 'active']
+    assert report['life_state_verified']
+
+
 def test_gameplay_duplicate_tick_keeps_last_and_reports_loss():
     frame = pd.concat([telemetry(), telemetry().iloc[[50]].assign(health=0, life_state=2)], ignore_index=True)
     player, _, report = segment_gameplay(frame, events(deaths=()), '123')
@@ -217,10 +226,14 @@ def test_cli_exports_report_events_and_roundtrip_telemetry(tmp_path, monkeypatch
     frame = telemetry().astype({'yaw': 'float32', 'pitch': 'float32'})
     monkeypatch.setattr('aimguard.gameplay.load_gameplay_demo', lambda path, steamid: (frame, events()))
     output = tmp_path / 'analysis'
-    main([str(source), '--steamid', '123', '--output', str(output), '--max-plots', '0'])
+    main([str(source), '--steamid', '123', '--output', str(output), '--max-plots', '0',
+          '--near-shot-seconds', '0.2', '--weapon-mode', 'all'])
     report = json.loads((output / 'report.json').read_text())
     assert report['source_sha256'] == hashlib.sha256(source.read_bytes()).hexdigest()
     assert report['engagement_count'] > 0
+    assert report['configuration']['near_shot_seconds'] == 0.2
+    assert report['configuration']['weapon_mode'] == 'all'
+    assert report['engagements'][0]['movement_context']['near_shot']['speed_intervals'] > 0
     assert report['plots'] == []
     assert report['dependencies']['demoparser2']
     records = json.loads((output / 'events.json').read_text())

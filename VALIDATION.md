@@ -54,3 +54,35 @@ warnings, exact SteamID manifest validation, relative paths, duplicate rejection
 and refusing existing output directories. Automated fixtures do not replace real
 replay validation. Only one distinct replay has been evaluated; additional
 matches are still required before claiming cross-match reliability.
+
+## v0.4 firearm and movement-context validation
+
+The six locally acquired XGuardian user-study cases were rerun with firearm
+selection and a 0.1-second shot-proximity radius. Published window counts were
+83, 143, 51, 75, 99, and 98 for cases 1A, 1B, 2A, 2B, 3A, and 3B respectively.
+All 549 windows passed the structural validator. All six reports retain round
+event warnings. Cases 1A/1B/2A/2B are study-labeled cheating, and cases 3A/3B are
+study-labeled legitimate. These selected examples are development data.
+
+Reports retain full-window features and add interval-based speed, acceleration,
+and jerk summaries for near-shot and surrounding movement. Derivatives require
+adjacent supporting intervals in the same category. Regression tests verify
+that separate periods do not create artificial derivatives, empty categories
+export nulls, unknown/knife/utility events are excluded, and weapon switches
+split groups. Test fixtures now explicitly identify their synthetic AK-47 shots.
+
+The full local suite has 76 passing tests. A separate replay-command run on case
+3A exercised all-event mode and a 0.05-second radius. Generated report scripts
+passed programmatic checks for context summaries, shading, navigation, and older
+report compatibility. Visual browser verification was unavailable because the
+browser tool rejected local file URLs.
+
+The older-demo compatibility fix restricts positive-health life-state
+verification to playing teams 2 and 3. Unassigned spawn samples remain excluded,
+and inconsistent life states on playing teams still raise an error. A regression
+test covers unassigned records retaining spawn health.
+
+The configurable 0.1-second radius is an exploratory default. It does not
+establish a detection threshold, and these checks do not measure cheat detection
+accuracy or reconstruct recoil and target context. Source demos, labels, and
+generated analyses remain local and excluded from Git.

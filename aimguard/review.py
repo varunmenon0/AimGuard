@@ -29,7 +29,8 @@ def build_review(directory, output):
             'pitch': pitch.tolist(), 'speed': [None, *speed.tolist()],
         })
     data = dict(player=report['steamid'], replay=Path(report['source']).name,
-                rate=rate, quality=report['data_quality'], windows=windows)
+                rate=rate, quality=report['data_quality'], windows=windows,
+                near_shot_seconds=report.get('configuration', {}).get('near_shot_seconds'))
     payload = json.dumps(data, allow_nan=False).replace('<', r'\u003c')
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open('x', encoding='utf-8') as handle:
@@ -66,7 +67,8 @@ dt{font-size:.85rem;color:#455b52} dd{margin:2px 0 0;font-variant-numeric:tabula
 <p id="detail"></p>
 <p>Red markers show weapon fire. Time is relative to the first shot.</p>
 <div id="plots"></div>
-<h2>Movement features</h2>
+<section id="movement-context"></section>
+<h2>Full-window movement features</h2>
 <dl id="features"></dl>
 </section>
 <p>Features describe recorded movement around shots. They do not assign a cheating verdict.</p>
@@ -80,6 +82,7 @@ byId('context').textContent = data.replay + ' · Player ' + data.player + ' · A
 const q = data.quality;
 byId('coverage').textContent = data.windows.length + ' windows · ' + q.active_samples.toLocaleString()
   + ' active samples · ' + q.round_event_anomalies.length + ' round event warnings';
+const metricLabels = {mean_speed: 'Mean speed (degrees/s)', p95_speed: '95th percentile speed (degrees/s)', mean_accel: 'Mean absolute speed acceleration (degrees/s²)', p95_jerk: '95th percentile absolute speed jerk (degrees/s³)', covered_seconds: 'Covered time (seconds)'};
 const number = new Intl.NumberFormat(undefined, {maximumSignificantDigits: 5});
 function plot(w, values, label) {
   let low = Infinity, high = -Infinity;
@@ -92,12 +95,17 @@ function plot(w, values, label) {
   const x = t => 78 + 680 * (t - first) / (last - first);
   const y = v => 122 - 86 * (v - low) / (high - low);
   const points = values.flatMap((v, i) => v === null ? [] : [x(w.time[i]) + ',' + y(v)]).join(' ');
+  const radius = data.near_shot_seconds;
+  const bands = radius ? w.shots.map(t => {
+    const left = x(Math.max(first, t - radius)), right = x(Math.min(last, t + radius));
+    return '<rect x="' + left + '" y="36" width="' + (right - left) + '" height="86" fill="#dceee6"/>';
+  }).join('') : '';
   const shots = w.shots.map(t => '<line x1="' + x(t) + '" x2="' + x(t)
     + '" y1="36" y2="122" stroke="#b23940" opacity=".55"/>').join('');
   return '<svg viewBox="0 0 780 155" role="img" aria-label="' + label + '">'
     + '<text x="78" y="20">' + label + '</text><path d="M78 36V122H758" fill="none" stroke="#9aa9a0"/>'
     + '<text x="4" y="41">' + number.format(high) + '</text><text x="4" y="122">' + number.format(low)
-    + '</text>' + shots + '<polyline points="' + points + '" fill="none" stroke="#14654e" stroke-width="2"/>'
+    + '</text>' + bands + shots + '<polyline points="' + points + '" fill="none" stroke="#14654e" stroke-width="2"/>'
     + '<text x="78" y="144">' + number.format(first) + ' s</text><text x="758" y="144" text-anchor="end">'
     + number.format(last) + ' s</text></svg>';
 }
@@ -106,12 +114,33 @@ function render() {
   byId('prev').disabled = i === 0;
   byId('next').disabled = i === data.windows.length - 1;
   byId('detail').textContent = 'Round ' + w.round_id + ' · Ticks ' + w.start_tick + '–' + w.end_tick
-    + ' · ' + w.shot_count + (w.shot_count === 1 ? ' shot' : ' shots');
+    + (w.weapon ? ' · ' + w.weapon : '') + ' · ' + w.shot_count + (w.shot_count === 1 ? ' shot' : ' shots');
   byId('plots').innerHTML = plot(w, w.yaw, 'Yaw (degrees, unwrapped)')
     + plot(w, w.pitch, 'Pitch (degrees)') + plot(w, w.speed, 'Angular speed (degrees/s)');
+  const context = byId('movement-context');
+  context.replaceChildren();
+  if (w.movement_context) {
+    const title = document.createElement('h2');
+    title.textContent = 'Movement within ' + Math.round(data.near_shot_seconds * 1000) + ' ms of shots and surrounding movement';
+    const note = document.createElement('p');
+    note.textContent = 'Green shading marks the near-shot periods. Derivatives use consecutive intervals within each category. A dash indicates no eligible samples.';
+    context.append(title, note);
+    for (const [region, stats] of Object.entries(w.movement_context)) {
+      const label = document.createElement('h3'), list = document.createElement('dl');
+      label.textContent = region === 'near_shot' ? 'Near shots' : 'Surrounding movement';
+      for (const [key, value] of Object.entries(stats)) {
+        const group = document.createElement('div'), term = document.createElement('dt'), detail = document.createElement('dd');
+        term.textContent = metricLabels[key] || key.replaceAll('_', ' ');
+        detail.textContent = value === null ? '—' : number.format(value);
+        group.append(term, detail);
+        list.append(group);
+      }
+      context.append(label, list);
+    }
+  }
   byId('features').replaceChildren(...Object.entries(w.features).map(([key, value]) => {
     const group = document.createElement('div'), term = document.createElement('dt'), detail = document.createElement('dd');
-    term.textContent = key.replaceAll('_', ' ');
+    term.textContent = metricLabels[key] || key.replaceAll('_', ' ');
     detail.textContent = number.format(value);
     group.append(term, detail);
     return group;

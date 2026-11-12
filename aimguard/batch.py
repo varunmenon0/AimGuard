@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from aimguard.gameplay import analyze_demo
+from aimguard.gameplay import analyze_demo, positive_finite
 
 
 def validate_windows(player, events, report):
@@ -73,7 +73,10 @@ def load_manifest(path):
     return normalized
 
 
-def run_batch(manifest, output, max_plots=3):
+def run_batch(manifest, output, max_plots=3, weapon_mode='firearms', near_shot_s=0.1):
+    positive_finite(near_shot_s=near_shot_s)
+    if weapon_mode not in ('firearms', 'all'):
+        raise ValueError('weapon_mode must be firearms or all')
     if max_plots < 0:
         raise ValueError('max_plots must be nonnegative')
     jobs = load_manifest(manifest)
@@ -87,7 +90,8 @@ def run_batch(manifest, output, max_plots=3):
         stage = 'analysis'
         try:
             report = analyze_demo(job['demo'], job['steamid'], destination,
-                                  tickrate=job['tickrate'], max_plots=max_plots)
+                                  tickrate=job['tickrate'], max_plots=max_plots,
+                                  weapon_mode=weapon_mode, near_shot_s=near_shot_s)
             stage = 'validation'
             player = pd.read_csv(destination / 'telemetry.csv', dtype={'steamid': str})
             events = pd.DataFrame(json.loads((destination / 'events.json').read_text()))
@@ -110,6 +114,7 @@ def run_batch(manifest, output, max_plots=3):
                        segments=quality['segments'], windows=report['engagement_count'],
                        skipped_groups=len(report['skipped_engagements']),
                        excluded_events=quality['events_outside_active_segments'],
+                       weapon_filter=report['weapon_filter'],
                        round_anomalies=quality['round_event_anomalies'],
                        warnings=warnings, violations=violations)
         except Exception as exc:
@@ -147,10 +152,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Batch CS2 replay validation from a JSON manifest')
     parser.add_argument('manifest', type=Path)
     parser.add_argument('--output', required=True, type=Path, help='New output directory; must not exist')
+    parser.add_argument('--weapon-mode', choices=['firearms', 'all'], default='firearms')
+    parser.add_argument('--near-shot-seconds', type=float, default=0.1)
     parser.add_argument('--max-plots', type=int, default=3)
     args = parser.parse_args(argv)
     try:
-        summary = run_batch(args.manifest, args.output, args.max_plots)
+        summary = run_batch(args.manifest, args.output, args.max_plots, args.weapon_mode, args.near_shot_seconds)
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
     return 1 if summary['counts']['failed'] or summary['counts']['error'] else 0
