@@ -191,7 +191,39 @@ works offline and embeds selected-player telemetry, so share it only where you
 would share the underlying analysis. Use `--output` to choose a new filename
 when rebuilding a report.
 
-### Automatic tests
+### Experimental player/match baseline
+
+`aimguard.baseline` freezes a two-feature logistic regression from development
+reports and evaluates it against a separately reserved manifest. It aggregates
+median near-shot p95 speed and mean absolute speed acceleration per selected
+player/match, using the existing 100 ms firearm configuration. Scaling is fitted
+on development cases only, with log1p input transformation, class balancing,
+C=1, and a fixed 0.5 cutoff. Scores are uncalibrated.
+
+The following commands require the locally acquired case manifests and reports,
+which are excluded from Git. Choose new destinations when reproducing a run.
+
+```sh
+python -m aimguard.baseline freeze outputs/xguardian/study-validation/study-cases.json outputs/xguardian/firearm-context-validation --output outputs/baseline-demo/frozen
+python -m aimguard.baseline evaluate outputs/baseline-demo/frozen data/external/xguardian/additional-evaluation-manifest-v2.json --output outputs/baseline-demo/evaluation
+```
+
+The evaluation manifest has a `cases` array with exact string SteamIDs, match
+IDs, labels, demo paths and hashes, and label-file paths and hashes. Its adjacent
+`.sha256` receipt must match. Model JSON and its checksum record the scaler,
+coefficients, cutoff, development inputs, code hashes, and dependency versions
+before reserved feature extraction. A start receipt records those hashes for
+each evaluation. Duplicate/development-overlapping targets, matches, and demo
+hashes are rejected. Processing errors produce explicit abstentions.
+
+`evaluation.json` records individual predictions, confusion counts, analysis
+coverage, and exact binomial intervals. Rate denominators include successfully
+analyzed cases, with abstentions reported separately. The first local run flagged
+1/4 cheating-labeled cases and 3/6 scored legitimate cases, with one additional
+legitimate case abstaining. These results motivate further development and more
+representative data. See VALIDATION.md for limits and evaluation-set usage.
+
+### Automatic test execution
 
 GitHub Actions runs `python -m pytest -q` on pushes and pull requests using
 Python 3.12 on Linux. Tests use small fixtures and do not require private demos.

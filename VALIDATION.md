@@ -86,3 +86,55 @@ The configurable 0.1-second radius is an exploratory default. It does not
 establish a detection threshold, and these checks do not measure cheat detection
 accuracy or reconstruct recoil and target context. Source demos, labels, and
 generated analyses remain local and excluded from Git.
+
+## First frozen baseline evaluation
+
+A player/match baseline was fitted using only the six study development cases.
+Inputs were median per-window near-shot p95 speed and mean absolute speed
+acceleration, at the existing 100 ms firearm setting. The log1p transformation,
+development-only StandardScaler, class-balanced logistic regression with C=1,
+and cutoff 0.5 were fixed before evaluating the 11 reserved cases. There was no
+hyperparameter search or evaluation-driven threshold change.
+
+The frozen model SHA-256 was
+`0803119ac6aa815d5781a089399d727a7007850a72430590900c4f7369fee011`.
+Model JSON includes development report hashes, extraction code hashes, and
+dependency versions. Evaluation wrote a start receipt before feature extraction.
+
+Ten cases were scored and one legitimate-labeled case abstained:
+
+| Outcome | Count |
+| --- | ---: |
+| Cheating-labeled target flagged | 1 |
+| Cheating-labeled target missed | 3 |
+| Legitimate-labeled target falsely flagged | 3 |
+| Legitimate-labeled target unflagged | 3 |
+| Legitimate-labeled target abstained | 1 |
+
+Among successfully analyzed cases, detection was 1/4 (25%, exact 95% interval
+0.6%–80.6%) and false positives were 3/6 (50%, interval 11.8%–88.2%). The intervals
+assume independent outcomes and do not account for source-label uncertainty or
+shared non-target participants. This convenience sample is small.
+
+The first three legitimate-labeled targets scored higher than all four
+cheating-labeled targets. The separation observed in the development cases did
+not generalize reliably with these speed/acceleration summaries. The development
+sample contained only two legitimate cases, both selected XGuardian false-positive
+examples. Weapon mix, targets, and recoil remain uncontrolled.
+
+The abstention involved 1,599 positive-health life-state-2 samples on playing
+teams, including 1,154 within active-round intervals. This was diagnosed after
+evaluation. The frozen extractor and predictions were retained, and that case
+remains an abstention in the recorded run.
+
+The source labels indicate cheating within a selected player's match, without
+cheat subtype or activation ticks. Source IDs were rounded, with unique mappings
+to exact replay IDs recorded in acquisition manifests. This evaluation does not
+establish aimbot-specific sensitivity. Scores are uncalibrated.
+
+All 82 automated tests pass, including model export/checksum verification,
+development/evaluation overlap rejection before extraction, frozen configuration
+checks, missing-feature handling, and explicit abstention denominators. The
+original reservation manifests remain historical snapshots; a local usage receipt
+records that these 11 cases have now been evaluated. Further tuning using this
+feedback requires fresh cases for a new held-out performance claim.
