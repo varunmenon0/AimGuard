@@ -138,3 +138,15 @@ checks, missing-feature handling, and explicit abstention denominators. The
 original reservation manifests remain historical snapshots; a local usage receipt
 records that these 11 cases have now been evaluated. Further tuning using this
 feedback requires fresh cases for a new held-out performance claim.
+
+## Retained-health life-state correction
+
+Version 0.4.1 excludes known non-alive states 1 and 2 even when a demo retains
+positive health. Such samples split active segments and are counted explicitly.
+Positive health on playing teams with an unknown state still fails verification.
+
+The previously abstaining legitimate case now yields 53 firearm windows with no
+structural violations. All 1,599 retained-health non-alive samples remain excluded.
+The original frozen baseline results were preserved. No revised detection rate
+was computed from this extraction fix. All 84 tests pass, including both known
+non-alive states and segment-boundary preservation.

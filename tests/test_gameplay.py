@@ -146,9 +146,21 @@ def test_matching_uses_exact_ids_and_preserves_multiple_shots_on_same_tick():
 
 def test_life_state_semantics_must_agree_with_recording():
     frame = telemetry()
-    frame.loc[20, 'life_state'] = 2
+    frame.loc[20, 'life_state'] = 3
     with pytest.raises(ValueError, match='Life-state verification failed'):
         segment_gameplay(frame, events(), '123')
+
+
+@pytest.mark.parametrize('state', [1, 2])
+def test_non_alive_states_with_retained_health_are_excluded_and_reported(state):
+    frame = telemetry()
+    frame.loc[80:100, 'life_state'] = state
+    player, matched, report = segment_gameplay(frame, events(shots=(70, 110), deaths=()), '123')
+    assert not player.loc[80:100, 'active'].any()
+    assert report['non_alive_positive_health_samples'] == 21
+    assert player.loc[79, 'segment_id'] != player.loc[101, 'segment_id']
+    windows, _ = extract_engagements(player, matched)
+    assert all(not (w['start_tick'] <= 80 <= w['end_tick']) for w in windows)
 
 
 def test_unassigned_spawn_health_does_not_invalidate_playing_life_states():

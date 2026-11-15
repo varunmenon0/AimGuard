@@ -17,7 +17,7 @@ from aimguard.combat import movement_context, selected_fire, weapon_names
 
 ROUND_EVENTS = ('round_start', 'round_freeze_end', 'round_end')
 COMBAT_EVENTS = ('weapon_fire', 'player_hurt', 'player_death')
-FEATURE_VERSION = '0.4.0'
+FEATURE_VERSION = '0.4.1'
 
 
 def positive_finite(**values):
@@ -152,12 +152,13 @@ def segment_gameplay(frame, events, steamid, tickrate=64.0, max_gap_s=0.25):
     positive_health = player['health'].gt(0)
     finite_life_health = np.isfinite(player[['health', 'life_state']]).all(axis=1)
     playing_team = player['team_num'].isin([2, 3]).to_numpy()
-    # Unassigned/spectator samples are excluded from play and cannot establish
-    # the semantics of a living player's state (older demos retain spawn health).
-    inconsistent = playing_team & positive_health & finite_life_health & player['life_state'].ne(0)
-    if inconsistent.any():
-        raise ValueError('Life-state verification failed: positive health with life_state != 0')
+    # Known non-alive states can retain spawn health in older recordings.
+    # They remain excluded even when the health field has not caught up.
     valid_state = player['life_state'].isin([0, 1, 2]).to_numpy()
+    inconsistent = playing_team & positive_health & finite_life_health & ~valid_state
+    if inconsistent.any():
+        raise ValueError('Life-state verification failed: positive health with unknown life_state')
+    retained_health = playing_team & positive_health & player['life_state'].isin([1, 2])
     valid_angles = player['pitch'].between(-90, 90).to_numpy()
     valid = finite & valid_state & valid_angles
     alive = (positive_health & player['life_state'].eq(0)).to_numpy()
@@ -222,7 +223,9 @@ def segment_gameplay(frame, events, steamid, tickrate=64.0, max_gap_s=0.25):
         'sample_counts_by_reason': {str(k): int(v) for k, v in pd.Series(reason).value_counts().items()},
         'active_duration_seconds': active_duration,
         'recording_duration_seconds': float((tick[-1] - tick[0]) / tickrate),
-        'life_state_verified': bool((playing_team & positive_health & finite_life_health).any()), 'life_state_summary': life_summary,
+        'life_state_verified': bool((playing_team & positive_health & player['life_state'].eq(0)).any()),
+        'non_alive_positive_health_samples': int(retained_health.sum()),
+        'life_state_summary': life_summary,
         'active_round_intervals': intervals, 'round_event_anomalies': anomalies,
         'recording_gaps': int(gaps.sum()), 'max_gap_seconds': max_gap_s,
     }

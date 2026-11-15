@@ -63,10 +63,11 @@ for each player or configuration to keep analyses distinct.
   freeze-ends are reported and ignored. Missing round ends close at the next
   start or recording end and are reported. For simultaneous transitions, an end
   is processed before a start, then a freeze-end.
-- Positive health must agree with life state `0`; the input's life-state/health
-  distribution is included in the report. Positive health on teams 2 or 3 with another finite
-  life-state code fails verification instead of silently changing semantics.
-  Known states `1` and `2` are non-alive. Unknown or nonfinite samples are excluded.
+- Life state `0` and positive health are required for alive samples. Known
+  states `1` and `2` are excluded even when older demos retain positive health.
+  Reports count these retained-health samples and include the state/health
+  distribution. Positive health on playing teams with an unknown finite state
+  fails verification. Other unknown or nonfinite samples are excluded.
 - Only teams `2` and `3`, positive health, valid life state `0`, finite required
   telemetry, and pitch within [-90, 90] are eligible during active play.
 - Victim death events exclude the death tick, even with delayed health updates.
@@ -202,6 +203,9 @@ C=1, and a fixed 0.5 cutoff. Scores are uncalibrated.
 
 The following commands require the locally acquired case manifests and reports,
 which are excluded from Git. Choose new destinations when reproducing a run.
+The historical first evaluation uses commit `8b4748e` and its version-0.4 reports.
+Current extraction changes require newly generated reports of the matching
+feature version before freezing a new model.
 
 ```sh
 python -m aimguard.baseline freeze outputs/xguardian/study-validation/study-cases.json outputs/xguardian/firearm-context-validation --output outputs/baseline-demo/frozen
