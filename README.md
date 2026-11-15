@@ -350,8 +350,8 @@ python -m scripts.render_target_tracking outputs/xguardian/target-tracking
 ```
 
 This development diagnostic follows fixed opponents through each published
-firearm window. It retains the nearest horizontal candidate at the first shot
-and any recipients of positive damage from the selected player with the same
+firearm window. It retains separate nearest horizontal candidates at the first
+shot and its exact preceding tick, plus any recipients of positive damage from the selected player with the same
 weapon, segment, and window. These sources stay separate; multiple recipients
 produce separate tracks. A damage recipient is not a per-bullet target annotation.
 
@@ -373,3 +373,29 @@ development windows. This is agreement between different association methods,
 not target-identification accuracy: opponents can change during a burst.
 Visibility, vertical/hitbox geometry, recoil, lag compensation, and subtick timing
 remain unresolved. No classifier or detection threshold changes in this command.
+
+### Audit target-association disagreements
+
+```sh
+python -m aimguard.association_audit data/external/xguardian/development-v2-manifest.json outputs/xguardian/development-v2-analysis outputs/xguardian/target-tracking --output outputs/xguardian/association-audit
+```
+
+Use newly extracted tracking reports containing both shot-tick and pre-shot
+candidates, and run the tracking renderer first. The audit verifies source input
+hashes, window identities, and matching damage events. It compares both candidate
+choices with damage recipients without using damage events to select a geometric
+candidate. Report counts distinguish agreement, pairwise ordering changes,
+interrupted/missing geometry, and comparisons without a later pre-damage sample.
+Pairwise ordering compares only the fixed candidate and recipient, not all enemies.
+
+Selecting at a lethal shot's tick can exclude the victim because that tick already
+records death. The exact preceding tick provides a separate candidate without
+that post-shot state. In the current development pool, window-level event
+agreement is 438/485 for the preceding-tick candidate versus 274/480 at the shot.
+These are association diagnostics, not intended-target accuracy or cheating
+sensitivity. Original counts and detector predictions remain preserved.
+
+The local audit index links to exact window/opponent selections in the tracking
+viewers using `#w=WINDOW_INDEX&t=TRACK_INDEX`. Invalid indices fall back to the
+first selection. Damage occurrences in overlapping windows are reported separately
+from distinct source damage records; neither is treated as an independent trial.

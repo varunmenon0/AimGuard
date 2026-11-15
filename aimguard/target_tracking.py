@@ -121,6 +121,14 @@ def fixed_track(frame, steamid, opponent_id, ticks, shot_ticks, tickrate, deaths
         excluded_samples=int((~valid).sum()),segments=next_segment+1)
 
 
+def candidate_at_tick(frame, steamid, tick, deaths):
+    """Exact alive-only snapshot, with death events applied before selection."""
+    dead={victim for victim,death_tick in deaths if death_tick<=tick}
+    snapshot=frame.loc[frame.tick.eq(tick)&~frame.steamid.isin(dead)]
+    result=shot_alignment(snapshot,steamid,tick,tick-1)
+    return result.get('nearest_horizontal_candidate',{}).get('opponent_id')
+
+
 def analyze(manifest_path, analysis_root, output):
     from demoparser2 import DemoParser
     manifest=json.loads(Path(manifest_path).read_text())
@@ -165,26 +173,27 @@ def analyze(manifest_path, analysis_root, output):
             recipients=sorted({event['opponent_id'] for event in damage})
             first=window['shot_ticks'][0]
             local_deaths=[(victim,int(tick)) for victim,tick in deaths if window['start_tick']<=tick<=window['end_tick']]
-            dead_at_first={victim for victim,tick in local_deaths if tick<=first}
-            first_frame=local.loc[local.tick.eq(first)&~local.steamid.isin(dead_at_first)]
-            geometry=shot_alignment(first_frame,case['steamid'],first,first-1)
-            nearest=geometry.get('nearest_horizontal_candidate',{}).get('opponent_id')
-            opponents=sorted(set(recipients)|({nearest} if nearest else set()))
+            nearest=candidate_at_tick(local,case['steamid'],first,local_deaths)
+            before=candidate_at_tick(local,case['steamid'],first-1,local_deaths)
+            opponents=sorted(set(recipients)|{p for p in (nearest,before) if p is not None})
             association='none' if not recipients else ('single_damage_recipient' if len(recipients)==1 else 'multiple_damage_recipients')
             counts[association]+=1
             if recipients and nearest:
                 counts['damage_windows_with_geometric_candidate']+=1
                 counts['nearest_in_damage_recipients']+=int(nearest in recipients)
+            if recipients and before:
+                counts['damage_windows_with_pre_shot_candidate']+=1
+                counts['pre_shot_nearest_in_damage_recipients']+=int(before in recipients)
             tracks=[]
             for opponent in opponents:
                 track=fixed_track(local,case['steamid'],opponent,part.tick.tolist(),window['shot_ticks'],report['assumed_tickrate_hz'],local_deaths)
-                track['association_sources']=(['window_damage_recipient'] if opponent in recipients else [])+(['nearest_at_first_shot'] if opponent==nearest else [])
+                track['association_sources']=(['window_damage_recipient'] if opponent in recipients else [])+(['nearest_at_first_shot'] if opponent==nearest else [])+(['nearest_before_first_shot'] if opponent==before else [])
                 tracks.append(track)
                 counts['tracks']+=1
                 counts['tracks_with_valid_intervals']+=int(track['full_window']['valid_intervals']>0)
             records.append(dict(engagement_id=window['engagement_id'],weapon=window['weapon'],
                 shot_ticks=window['shot_ticks'],round_id=window['round_id'],association=association,
-                damage_recipients=recipients,damage_events=damage,nearest_at_first_shot=nearest,tracks=tracks))
+                damage_recipients=recipients,damage_events=damage,nearest_at_first_shot=nearest,nearest_before_first_shot=before,tracks=tracks))
         summary=dict(case_id=case['case_id'],label=case['label'],windows=len(windows),**dict(counts))
         summaries.append(summary)
         write_json(output/f'case_{index:04d}.json',dict(summary=summary,windows=records,
@@ -195,7 +204,7 @@ def analyze(manifest_path, analysis_root, output):
         manifest_sha256=digest(manifest_path),
         code_sha256={name:digest(Path(__file__).with_name(name)) for name in ('target_tracking.py','target_geometry.py','core.py','gameplay.py')},
         dependencies={name:importlib.metadata.version(name) for name in ('numpy','pandas','demoparser2')},
-        definition='Fixed opponent per validated firearm window. Damage recipients require exact attacker, weapon, segment and positive damage. Nearest geometric candidate selected at first shot only. Derivatives require consecutive valid ticks with unchanged teams. Death ticks latch exclusion through window end.',
+        definition='Fixed opponent per validated firearm window. Damage recipients require exact attacker, weapon, segment and positive damage. Separate geometric candidates selected at first shot and exact preceding tick; both retained without using later damage to choose either. Derivatives require consecutive valid ticks with unchanged teams. Death ticks latch exclusion through window end.',
         limitations=['Window damage recipients are not per-bullet intended-target annotations',
             'Multiple recipients retained separately; no target switching or guessed assignment',
             'No visibility, vertical/hitbox geometry, recoil or lag/subtick correction',

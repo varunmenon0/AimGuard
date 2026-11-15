@@ -112,3 +112,15 @@ def test_imprecise_float_identifiers_are_rejected():
     frame['steamid']=float(76561199000000001)
     with pytest.raises(ValueError,match='imprecise floats'):
         prepare(frame)
+
+
+def test_pre_shot_candidate_avoids_lethal_tick_victim_exclusion():
+    from aimguard.target_tracking import candidate_at_tick
+    rows=[]
+    for tick in (9,10):
+        rows.extend([sample(tick,'1',0,0,team=2),sample(tick,'2',10,0),sample(tick,'3',10,10)])
+    frame=prepare(pd.DataFrame(rows))
+    deaths=[('2',10)]
+    assert candidate_at_tick(frame,'1',10,deaths)=='3'
+    assert candidate_at_tick(frame,'1',9,deaths)=='2'
+    assert candidate_at_tick(frame,'1',8,deaths) is None

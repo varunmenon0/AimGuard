@@ -310,3 +310,57 @@ trained, no detection threshold changed, and these inspected development cases
 remain unsuitable for fresh held-out performance claims. Visibility, vertical
 geometry, hitboxes, recoil, lag/subtick timing, and intended-target validation
 remain prerequisites for interpreting these tracks as detection evidence.
+
+## Association audit and pre-shot candidate correction
+
+The audit verifies saved tracking/report/telemetry/event hashes, case/window
+identities, and every positive same-weapon damage link. Across 17 development
+cases it finds 847 window damage occurrences representing 836 distinct source
+damage records. Repeated occurrences in overlapping windows remain explicit.
+
+For each geometric/event disagreement, it compares the original fixed candidate
+and recipient at the candidate's anchor and exactly one tick before damage.
+Pairwise ordering changes require uninterrupted tracks for both players. The
+audit does not infer visibility, intended target, or individual bullet assignment.
+It distinguishes absent initial geometry, absent exact pre-damage geometry,
+interrupted tracks, numeric ties, and insufficient temporal comparison. Numeric
+tie tolerance is 1e-6 degrees and is not a detection cutoff.
+
+An initial audit found 178 occurrences where the recipient was killed on the
+first shot's tick and there was no later pre-damage comparison. Including six
+occurrences with no initial candidate gives 184 first-shot disagreement
+occurrences with same-tick damage and a recorded kill. Alive-only selection at
+that tick can exclude the victim, revealing a post-shot death-state selection
+bias rather than evidence that the player was aiming at another opponent.
+
+A separate geometric candidate is now chosen at the exact preceding tick,
+without looking at damage recipients. At assumed 64 Hz this is 15.625 ms before
+the first shot tick. Missing ticks remain unavailable; no fallback/interpolation
+is used. Shot-tick candidates and their original counts remain preserved.
+Both selections and all associated fixed tracks are retained side by side.
+
+Window-level candidate/event agreement is 438/485 for the preceding-tick anchor,
+versus the preserved 274/480 at the shot tick. Coverage differs, so these are not
+paired accuracy estimates. Across the same 847 damage occurrences, initial
+agreement is 719 with the pre-shot anchor and 557 with the shot-tick anchor.
+For pre-shot disagreements, 29 show uninterrupted pairwise ordering reversal,
+six retain the original candidate as horizontally closer, 49 lack the initial
+pair, 24 lack the pre-damage pair, 15 have no later pre-damage comparison, four
+lack a candidate, and one has an interruption. No initial ranking inconsistencies
+were found. These classifications describe geometry and timing, not causes of
+cheating or verified target switches.
+
+Retaining the additional candidates produces 1,554 tracks, with 1,521 having
+consecutive valid samples, across the same 1,316 windows. Viewer deep links
+select exact window/opponent indices. Programmatic mock-DOM checks exercised
+all 1,316 windows and 1,554 tracks, all 13 audit example links, and three invalid
+index cases. No browser visual verification is claimed. Tests cover the lethal
+shot bias, both audit anchors, uninterrupted ordering changes, unavailable exact
+ticks, numeric ties, malformed tracks, source checksum rejection before output,
+and an end-to-end audit fixture. All 133 tests pass.
+
+Original extraction/model evaluation artifacts are unchanged. No classifier or
+threshold was changed; improved association agreement is not improved cheat
+detection. Visibility, vertical/hitbox geometry, recoil, and lag/subtick timing
+remain unresolved. All replay data, identities, and generated audit reports stay
+local and excluded from Git.

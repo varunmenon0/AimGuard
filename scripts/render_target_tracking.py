@@ -49,7 +49,11 @@ function changeWindow(){
  if(w)w.tracks.forEach((t,i)=>opponents.add(new Option('Opponent '+(i+1)+' · '+t.association_sources.join(' + '),i)));
  draw();
 }
+const startup=new URLSearchParams(globalThis.location?.hash.slice(1)??'');
+function requestedIndex(name,count){const value=startup.get(name);return value!==null&&/^\d+$/.test(value)&&Number(value)<count?Number(value):0;}
+windows.value=String(requestedIndex('w',data.windows.length));
 windows.addEventListener('change',changeWindow);opponents.addEventListener('change',draw);changeWindow();
+opponents.value=String(requestedIndex('t',data.windows[Number(windows.value)]?.tracks.length??0));draw();
 </script></html>'''
 
 
@@ -64,15 +68,16 @@ def render(directory):
         payload=json.dumps(record,allow_nan=False).replace('<',r'\u003c')
         (directory/f'case_{index:04d}.html').write_text(PAGE.replace('__DATA__',payload))
         links.append(f'<li><a href="case_{index:04d}.html">{html.escape(case["case_id"])}</a></li>')
-        rows.append(f"| {case['case_id']} | {case['label']} | {case['windows']} | {case.get('single_damage_recipient',0)} | {case.get('multiple_damage_recipients',0)} | {case.get('nearest_in_damage_recipients',0)}/{case.get('damage_windows_with_geometric_candidate',0)} | {case.get('tracks_with_valid_intervals',0)}/{case.get('tracks',0)} |")
+        rows.append(f"| {case['case_id']} | {case['label']} | {case['windows']} | {case.get('single_damage_recipient',0)} | {case.get('multiple_damage_recipients',0)} | {case.get('nearest_in_damage_recipients',0)}/{case.get('damage_windows_with_geometric_candidate',0)} | {case.get('pre_shot_nearest_in_damage_recipients',0)}/{case.get('damage_windows_with_pre_shot_candidate',0)} | {case.get('tracks_with_valid_intervals',0)}/{case.get('tracks',0)} |")
     def total(key):return sum(c.get(key,0) for c in cases)
     text='\n'.join(['# Fixed-opponent tracking diagnostics','',
         f"{len(cases)} development cases; {total('tracks_with_valid_intervals')}/{total('tracks')} tracks have consecutive valid samples.",
         f"{total('single_damage_recipient')} windows have one matching damage recipient; {total('multiple_damage_recipients')} have multiple recipients.",
         f"The first-shot geometric candidate belongs to the window damage-recipient set in {total('nearest_in_damage_recipients')}/{total('damage_windows_with_geometric_candidate')} eligible windows.",
+        f"The exact pre-first-shot candidate belongs to that set in {total('pre_shot_nearest_in_damage_recipients')}/{total('damage_windows_with_pre_shot_candidate')} eligible windows.",
         'This is an association diagnostic, not target-attribution accuracy: the first shot and later damage may concern different opponents.',
-        '', '| Case | Label | Windows | One recipient | Multiple recipients | Geometric/event agreement | Usable tracks |',
-        '| --- | --- | ---: | ---: | ---: | ---: | ---: |',*rows,
+        '', '| Case | Label | Windows | One recipient | Multiple recipients | Shot-tick/event agreement | Pre-shot/event agreement | Usable tracks |',
+        '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |',*rows,
         '', '## Limits','',*['- '+v for v in summary['limitations']],
         '', 'No detection model or threshold changed. Correlation is unavailable for stationary or insufficient rate observations. Invalid samples and gaps split trajectories rather than being joined.',''])
     (directory/'report.md').write_text(text)
