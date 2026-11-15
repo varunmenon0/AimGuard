@@ -474,3 +474,65 @@ registries, demos, identities, and generated receipts stay local and ignored.
 All 157 automated tests pass for this milestone. The actual frozen bundle also
 passes checksum/runtime loading and all 17 extraction-equivalence receipts.
 Fresh evaluation remains pending; no independent detection result is claimed.
+
+## First fresh evaluation of the frozen tracking candidate
+
+The README's obsolete classification/deployment sentence was removed separately.
+The four-feature model and all extraction/scoring settings remained frozen during
+new data selection and evaluation.
+
+A metadata-only acquisition plan targeted eight cheating-labeled and 16 legitimate
+selected player/matches from archive order, with a 16 GiB compressed-cache cap.
+The quota completed after scanning 123 archive members and growing the cached
+prefix to 11.08 GiB. Three candidates were rejected for participant overlap.
+Nested ZIP CRCs, selected ZIP/demo hashes, exact participant IDs, and source-label
+mappings were verified. Original source `isCheater` labels were used; source-model
+prediction columns and aim features were not used for selection. Label IDs remain
+rounded, with unique mappings within each replay and no conflicting encoded
+source-label groups found. This is an archive-order convenience sample.
+
+All 24 fresh matches contain 241 distinct recorded participants, disjoint from
+each other and all 181 previously inspected participants. The frozen-model-bound
+reservation and registry receipts preceded feature extraction. The selected cases
+were not replaced after scoring. The full evaluation completed once at the fixed
+0.5 cutoff, without fitting, threshold search, or eligibility changes.
+
+| Source label | Flagged | Unflagged | Abstained |
+| --- | ---: | ---: | ---: |
+| Cheating | 8 | 0 | 0 |
+| Legitimate | 11 | 5 | 0 |
+
+All 24 cases were scored. Cheating-label recall is 8/8 (100%; exact 95% interval
+63.1–100%). The false-positive rate is 11/16 (68.75%; exact 95% interval
+41.3–89.0%). These intervals assume independent outcomes; sampling and source
+limitations remain. Labels describe cheating in a player/match, without confirmed
+aimbot subtype or assisted-tick annotations. These counts do not establish
+population-wide or aimbot-specific performance.
+
+The development result of zero false flags did not generalize. The frozen
+candidate overflags legitimate cases and is unsuitable as a detector at the
+current cutoff. These results do not isolate overfitting, distribution shift,
+label limitations, or measurement issues as the sole cause. They are preserved
+as a failed low-false-positive generalization test, not explained away or used to
+retune the reported evaluation.
+
+The run produced 1,273 structurally valid firearm windows, of which 1,220 met
+pre-shot tracking eligibility. All cases retain round-event warnings. Independent
+recomputation reproduced every case identity/label, four-feature vector, exported
+score, and fixed-cutoff flag. The model checksum/runtime still match the frozen
+bundle. No model or cutoff was changed after observing outcomes.
+
+The local report shows all cases, confusion counts, abstentions, source hashes,
+and uncertainty. Renderer tests reject inconsistent receipts/metrics/flags and
+escape analysis error text. The cohort is marked consumed in both the per-model
+reservation registry and a local usage receipt. Historical uninspected manifests
+remain snapshots; tuning on this feedback makes these cases development data.
+Future acquisition now honors registry participants/matches to prevent
+rediscovering a used cohort. The initial acquisition code remains reproducible at
+commit `54d3068`; the subsequent registry improvement does not alter its results.
+
+All 166 automated tests pass. Raw demos, identities, models, selection plans,
+registries, and generated evaluation reports remain local and ignored by Git.
+Further work should investigate the false flags and improve legitimate-case
+coverage/measurement specificity before freezing another candidate. A new fresh
+cohort will be needed for the next independent performance claim.

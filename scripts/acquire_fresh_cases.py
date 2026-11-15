@@ -47,6 +47,21 @@ def unique_exact_id(source_token,participants):
     return matches[0] if len(matches)==1 else None
 
 
+def recorded_exclusions(bundle,model_directory):
+    """A frozen bundle is immutable; its reservation registry tracks later use."""
+    blocked=set(bundle['excluded_participants'])
+    matches={case['match_id'] for case in bundle['development']}
+    model_hash=digest(Path(model_directory)/'model.json');receipts={}
+    for path in sorted((Path(model_directory)/'reservations').glob('*.reservation.json')):
+        receipt=json.loads(path.read_text())
+        if receipt['model_sha256']!=model_hash:
+            raise ValueError('Reservation registry model mismatch during acquisition')
+        for case in receipt['cases']:
+            blocked.update(case['participants']);matches.add(case['match_id'])
+        receipts[path.name]=digest(path)
+    return blocked,matches,receipts
+
+
 def range_header_ok(text,start,end):
     # Validate the final response, not redirect/interim headers.
     blocks=re.split(r'\r?\n\r?\n',text.strip())
@@ -117,7 +132,7 @@ def acquire(model_directory,label_tables,cache,prefetch,output,cheating=8,legiti
     bundle=load_model(model_directory)
     output=Path(output);output.mkdir(parents=True,exist_ok=False)
     labels=metadata_labels(label_tables)
-    blocked=set(bundle['excluded_participants']);blocked_matches={c['match_id'] for c in bundle['development']}
+    blocked,blocked_matches,registry_receipts=recorded_exclusions(bundle,model_directory)
     encoded_blocked={float(int(value)) for value in blocked}
     quotas={'1':cheating,'0':legitimate};counts={'1':0,'0':0}
     if min(quotas.values())<1:raise ValueError('Both label quotas must be positive')
@@ -125,6 +140,7 @@ def acquire(model_directory,label_tables,cache,prefetch,output,cheating=8,legiti
         source_url=URL,model_sha256=digest(Path(model_directory)/'model.json'),quotas=quotas,
         compressed_cache_limit_bytes=int(limit_gib*1024**3),initial_cache_bytes=Path(cache).stat().st_size,
         label_sources={str(Path(p).resolve()):digest(p) for p in label_tables},
+        prior_reservation_receipt_sha256=registry_receipts,excluded_participant_count=len(blocked),
         selection='Archive order; one target/match. Cheating label has priority until its quota is filled. Within label, SHA-256(match+source token) order. Reject inspected/shared participants and nonunique rounded-ID mapping. No features/predictions used.',
         code_sha256=digest(__file__),features_inspected=False)
     write_json(output/'plan.json',plan)

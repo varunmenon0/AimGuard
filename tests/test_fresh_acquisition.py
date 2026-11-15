@@ -27,3 +27,28 @@ def test_source_predictions_are_not_used_and_conflicting_labels_fail(tmp_path):
 
 def test_range_validation_accepts_http2_status_without_reason_phrase():
     assert range_header_ok('HTTP/2 206\r\ncontent-range: bytes 0-63/1000\r\n',0,64)
+
+
+def test_future_acquisition_excludes_all_registered_participants_without_mutating_model(tmp_path):
+    import json
+    from aimguard.baseline import digest
+    from scripts.acquire_fresh_cases import recorded_exclusions
+    model=tmp_path/'model.json';model.write_text('fixture model')
+    registry=tmp_path/'reservations';registry.mkdir()
+    path=registry/'used.reservation.json'
+    path.write_text(json.dumps(dict(model_sha256=digest(model),cases=[dict(participants=['20','21'],match_id='used')])) )
+    bundle=dict(excluded_participants=['10','11'],development=[dict(match_id='development')])
+    blocked,matches,receipts=recorded_exclusions(bundle,tmp_path)
+    assert blocked=={'10','11','20','21'} and matches=={'development','used'}
+    assert receipts=={path.name:digest(path)}
+    assert bundle['excluded_participants']==['10','11']
+
+
+def test_acquisition_rejects_registry_for_a_different_model(tmp_path):
+    import json
+    from scripts.acquire_fresh_cases import recorded_exclusions
+    (tmp_path/'model.json').write_text('fixture')
+    (tmp_path/'reservations').mkdir()
+    (tmp_path/'reservations'/'bad.reservation.json').write_text(json.dumps(dict(model_sha256='wrong',cases=[])))
+    with pytest.raises(ValueError,match='registry model mismatch'):
+        recorded_exclusions(dict(excluded_participants=[],development=[]),tmp_path)

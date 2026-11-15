@@ -52,3 +52,10 @@ replay is a mapping check, not recovery of the original unrounded annotation.
 No source-model predictions or current-model scores may be used to replace
 selected cases. Review metadata integrity, then bind the final cohort to the
 frozen model before running evaluation once.
+
+Future acquisition runs also read the frozen model's reservation registry. Every
+registered participant/match is excluded, including cohorts already evaluated or
+reserved but not yet scored. The acquisition plan records those receipt hashes.
+This avoids rediscovering a consumed cohort while keeping the frozen model
+immutable. The first recorded cohort used acquisition commit `54d3068`; this
+registry exclusion was added afterward and does not alter its selection/results.
