@@ -130,3 +130,15 @@ Fresh evidence is needed for another performance claim. This workflow remains
 an offline research tool; visibility, vertical/hitbox geometry, recoil, and
 lag/subtick corrections remain unresolved. It does not establish aimbot-specific
 sensitivity or support automatic enforcement.
+
+## Render the completed result
+
+```sh
+python -m scripts.render_tracking_evaluation outputs/xguardian/tracking-baseline-v2/evaluation
+```
+
+The local `evaluation.html` verifies the start receipt, saved metrics, individual
+predictions, and fixed-cutoff flags before rendering. It shows every case,
+abstentions, confusion counts, denominators, and exact uncertainty intervals.
+It does not refit, filter cases, or reinterpret source labels as aimbot labels.
+Choose `--output NEW_FILE.html` when rebuilding; existing reports are not replaced.
