@@ -315,3 +315,29 @@ and windows with damage or kills. Shared misses are listed first. All cases
 start as unreviewed: combat counts and match labels do not establish why a model
 failed or which ticks contain cheating. The viewer shows recorded aim charts,
 not rendered CS2 gameplay. Choose a new output directory for each run.
+
+### Horizontal opponent alignment diagnostics
+
+```sh
+python -m aimguard.target_geometry data/external/xguardian/development-v2-manifest.json outputs/xguardian/development-v2-analysis --output outputs/xguardian/target-geometry
+python -m scripts.render_target_geometry outputs/xguardian/target-geometry
+```
+
+This separate development command verifies local demo/report identities and
+extracts all players' positions at published firearm shot ticks and approximately
+100 ms earlier. It computes horizontal bearing minus recorded yaw for alive
+opponents on the other playing team. Exact ticks are required; missing samples
+are not interpolated. Duplicate player/tick identities fail verification.
+
+For the nearest horizontal candidate at the shot, the before/after comparison
+keeps that same opponent. It does not switch to whichever opponent was nearest
+earlier. Pre-shot pairs must fall within the published window and have valid
+alive players with unchanged teams. The report records coverage and exclusions,
+assumed timing, input hashes, and per-opponent measurements.
+
+This is a geometry diagnostic, not a new detector. It does not determine the
+intended target, visibility, head/hitbox alignment, recoil-corrected bullet
+direction, or continuous tracking. Opponents already dead at the shot tick are
+excluded, including lethal-tick state changes. Existing feature versions and
+model outputs remain unchanged. All generated identity data remains local.
+Parser fields are documented by [demoparser2](https://github.com/LaihoE/demoparser#list-of-fields-the-parser-supports).

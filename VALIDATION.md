@@ -232,3 +232,36 @@ weapons, damage/kill window counts, eligible measurements, model outcomes, and
 provenance. Every case starts with explicit unreviewed status and no causal
 explanation. Tests reject altered manifest receipts and unsafe case identifiers
 before creating output. No model, threshold, or historical prediction changed.
+
+## Horizontal opponent geometry feasibility
+
+A separate diagnostic processes the same 17 development demos, without fitting
+or changing a classifier. Of 6,060 unique published firearm shot ticks, 6,030
+have a valid alive opposing-player candidate and 6,007 have an exact paired
+pre-shot observation. At assumed 64 Hz, the rounded 100 ms offset is six ticks
+(93.75 ms). Opponent geometry is sampled at exact ticks without interpolation.
+The nearest candidate by horizontal angular error at the shot is held fixed
+when comparing the earlier endpoint. Every opponent candidate is retained in
+local per-case JSON, not only the nearest one.
+
+Tests cover cardinal bearings, yaw wrap, zero-distance/invalid positions,
+fixed opponent identity across endpoints, teammates, retained-health non-alive
+players, missing exact ticks, duplicate player/tick rejection, and team changes.
+All 107 tests pass. The generated static chart was visually inspected; no browser
+visual verification is claimed. Inputs/code hashes and dependency versions are
+recorded locally, with explicit coverage and unavailable reasons.
+
+There is label-group overlap in horizontal alignment. Shared misses E-05 and
+E-09 have median nearest-candidate horizontal errors of 13.394 and 2.178 degrees,
+respectively. This does not support attributing both failures to one alignment
+pattern. The pre-shot comparison includes player translation and is not an
+isolated measure of crosshair movement.
+
+These measurements omit vertical aim, hitboxes, eye offsets, visibility,
+recoil correction, lag compensation, and subtick timing. A geometrically nearest
+opponent may be behind a wall or not the intended target. A lethal shot can
+already show the victim as dead at its recorded tick; excluding that candidate
+creates coverage bias. Two endpoints do not establish continuous tracking.
+Further work must validate target association and trajectory geometry before
+using these diagnostics as candidate model features. No improved detection rate
+is claimed, and all historical model predictions remain unchanged.
