@@ -341,3 +341,35 @@ direction, or continuous tracking. Opponents already dead at the shot tick are
 excluded, including lethal-tick state changes. Existing feature versions and
 model outputs remain unchanged. All generated identity data remains local.
 Parser fields are documented by [demoparser2](https://github.com/LaihoE/demoparser#list-of-fields-the-parser-supports).
+
+### Fixed-opponent tracking and event association
+
+```sh
+python -m aimguard.target_tracking data/external/xguardian/development-v2-manifest.json outputs/xguardian/development-v2-analysis --output outputs/xguardian/target-tracking
+python -m scripts.render_target_tracking outputs/xguardian/target-tracking
+```
+
+This development diagnostic follows fixed opponents through each published
+firearm window. It retains the nearest horizontal candidate at the first shot
+and any recipients of positive damage from the selected player with the same
+weapon, segment, and window. These sources stay separate; multiple recipients
+produce separate tracks. A damage recipient is not a per-bullet target annotation.
+
+Horizontal error and yaw/bearing velocities use exact consecutive replay ticks.
+Missing/invalid samples, non-alive states, team changes, and recorded death events
+break the trajectory. A death event excludes that player through the window end,
+even if health/state updates lag. Rates never bridge a recording gap. Near-shot
+rate summaries require both supporting samples within 100 ms of a grouped shot.
+Stationary or insufficient rate observations produce null correlations.
+
+The local viewer lets you choose a window and fixed opponent, with shot and
+recipient-specific damage markers. JSON records each association source, damage
+event, trajectory, coverage, input hashes, code hashes, and runtime versions.
+Re-extraction must reproduce the saved shooter's inputs at original float32
+coordinate precision. Choose a new output folder for each extraction run.
+
+The first-shot candidate belonged to the damage-recipient set in 274/480 eligible
+development windows. This is agreement between different association methods,
+not target-identification accuracy: opponents can change during a burst.
+Visibility, vertical/hitbox geometry, recoil, lag compensation, and subtick timing
+remain unresolved. No classifier or detection threshold changes in this command.

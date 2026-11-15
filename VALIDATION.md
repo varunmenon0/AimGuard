@@ -265,3 +265,48 @@ creates coverage bias. Two endpoints do not establish continuous tracking.
 Further work must validate target association and trajectory geometry before
 using these diagnostics as candidate model features. No improved detection rate
 is claimed, and all historical model predictions remain unchanged.
+
+## Fixed-opponent tracking and damage association
+
+Continuous sampled horizontal trajectories now supplement the two-endpoint
+geometry diagnostic. For each published firearm window, separate tracks retain
+the nearest valid opponent at the first shot and each matching damage recipient.
+Damage links require exact attacker identity, positive health damage, matching
+weapon, segment, and window bounds. Per-event ticks and recipient IDs are kept.
+Multiple recipients stay separate; no bullet-to-target attribution is invented.
+
+Across 17 development cases and 1,316 windows, 1,495 of 1,528 tracks have at least
+one consecutive valid interval. There are 477 windows with one matching damage
+recipient and nine with multiple recipients. Of 480 damage windows with an
+available first-shot geometric candidate, 274 candidates belong to the window's
+damage-recipient set. This agreement count is not target-identification accuracy:
+the first shot may concern a different opponent from later damage events.
+The original two-endpoint counts and all prior model predictions are preserved.
+
+Tracks retain fixed identities rather than following the nearest opponent at
+each sample. Angular derivatives require consecutive valid ticks and unchanged
+teams. Missing samples, invalid positions, non-alive states, and zero horizontal
+distance interrupt tracks. Death events from the full replay latch exclusion
+through window end, including retained-health/state lag. No gaps are interpolated.
+Near-shot interval summaries require both endpoints inside the configured 100 ms
+radius. Velocities use wrapped angular steps; correlations are null for constant
+or insufficient observations. Bearing velocity includes both players' translation.
+
+New tests cover perfect synthetic tracking, yaw wrap, stationary correlation,
+missing ticks/players, fixed identities, death lag, team changes, precise event
+association, float-ID rejection, float32 CSV round trips, and near-shot boundaries.
+All 120 tests pass. Generated viewer scripts were executed against a mock DOM
+through all 1,316 windows and 1,528 opponent selections, checking finite chart
+coordinates. This is programmatic navigation verification, not browser visual QA.
+Embedded metadata escaping and summary identity checks also have automated tests.
+
+Saved local artifacts include per-sample errors/velocities, segment boundaries,
+association sources, damage events, coverage, dependency versions, and source/input
+hashes. The initial extraction stopped when comparing rounded CSV coordinates
+with float32 parser values; comparison now reconstructs the original float32
+precision, without accepting arbitrary coordinate tolerances. A subsequent run
+added explicit damage-event markers with unchanged summary counts. No model was
+trained, no detection threshold changed, and these inspected development cases
+remain unsuitable for fresh held-out performance claims. Visibility, vertical
+geometry, hitboxes, recoil, lag/subtick timing, and intended-target validation
+remain prerequisites for interpreting these tracks as detection evidence.
