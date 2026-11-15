@@ -280,3 +280,24 @@ aggregation, and review tooling remain future work.
 Never automatically punish players from this prototype. Keep unnecessary player
 identifiers out of shared artifacts; provide review and appeal mechanisms before
 any deployment.
+
+### Grouped development model diagnostics
+
+Compare two fixed recipes on the explicitly designated development pool:
+
+```sh
+python -m aimguard.development_models data/external/xguardian/development-v2-manifest.json outputs/xguardian/development-v2-analysis --output outputs/xguardian/development-model-diagnostics
+python -m scripts.render_development_diagnostics outputs/xguardian/development-model-diagnostics
+```
+
+Matches sharing any participant, including transitive links, stay together.
+Each prediction holds out an entire participant group; scaling and model fitting
+use the remaining groups only. Cases, rather than windows, are training rows.
+The command records input/code hashes, dependency versions, group membership,
+fold scalers, coefficients, and predictions. It requires local demos to verify
+checksums and participant identities. Choose a new output directory for each run.
+
+The 17-case development run formed 15 groups. Speed/acceleration found 5/8
+cheating-labeled cases with 2/9 false flags; timing/direction found 4/8 with 1/9
+false flags. These are exploratory diagnostics on previously inspected data,
+not fresh held-out accuracy estimates. Neither recipe is selected for deployment.

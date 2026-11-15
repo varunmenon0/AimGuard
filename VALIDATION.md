@@ -186,3 +186,35 @@ measurements have not demonstrated improved held-out detection performance.
 The 90-test suite passes. Additional coverage rejects mixed extraction settings
 before producing development comparisons. Generated demos, identity metadata,
 analysis outputs, and charts remain excluded from Git.
+
+## Participant-grouped development model diagnostics
+
+Two fixed recipes were compared across the expanded 17-case development pool:
+original speed/acceleration summaries and four timing/direction summaries
+(stop fraction, turn angle, before/after log speed difference, signed peak time).
+Connected components of all replay participants produce 15 groups; transitive
+participant overlap stays within a group. Each fold holds out one whole group,
+with scaling and balanced logistic regression fitted on training groups only.
+Case medians are training rows. Both recipes use C=1 and cutoff 0.5, without a
+parameter or threshold search. Single-class training folds abstain explicitly.
+
+| Recipe | True positives | Missed cheating labels | False positives | True negatives |
+| --- | ---: | ---: | ---: | ---: |
+| Speed/acceleration | 5 | 3 | 2 | 7 |
+| Timing/direction | 4 | 4 | 1 | 8 |
+
+Both scored all 17 cases. Timing/direction reduced false flags but missed one
+additional cheating label. No production winner was selected. The speed recipe
+is refitted within each fold and is distinct from the historical frozen model.
+Feature choices were informed by this pool; these diagnostics do not establish
+improved held-out detection. Overlapping training folds also preclude treating
+the predictions as independent binomial trials, so exact confidence intervals
+are omitted. Source labels remain generic cheating labels with rounded-ID limits.
+
+Local protocol and comparison artifacts record input/code hashes, dependency
+versions, participant components, eligible-window counts, training/held-out case
+IDs, scalers, coefficients, and predictions. A second identical run added complete
+provenance and chart formatting; it did not change the recipes or cutoff.
+The 95-test suite passes, including transitive participant grouping, training-only
+scaling, one prediction per case, single-class abstention, and invalid-input checks.
+All identity metadata, demo files, diagnostic reports, and plots remain local.
