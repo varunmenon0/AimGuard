@@ -67,7 +67,8 @@ dt{font-size:.85rem;color:#455b52} dd{margin:2px 0 0;font-variant-numeric:tabula
 <p id="detail"></p>
 <p>Red markers show weapon fire. Time is relative to the first shot.</p>
 <div id="plots"></div>
-<section id="movement-context"></section>
+<section id="shot-time-profile" hidden></section>
+<section id="movement-context" hidden></section>
 <h2>Full-window movement features</h2>
 <dl id="features"></dl>
 </section>
@@ -82,6 +83,7 @@ byId('context').textContent = data.replay + ' · Player ' + data.player + ' · A
 const q = data.quality;
 byId('coverage').textContent = data.windows.length + ' windows · ' + q.active_samples.toLocaleString()
   + ' active samples · ' + q.round_event_anomalies.length + ' round event warnings';
+const profileLabels = {pre_shot_p95_speed: 'Before-shot p95 speed (degrees/s)', on_shot_median_speed: 'At-shot median speed (degrees/s)', post_shot_p95_speed: 'After-shot p95 speed (degrees/s)', pre_post_speed_log_ratio: 'Before/after speed log ratio', near_shot_stop_fraction: 'Near-shot stop fraction', near_shot_mean_turn: 'Near-shot mean turn (radians)', near_shot_yaw_reversals_per_second: 'Near-shot yaw reversals/s', near_shot_pitch_reversals_per_second: 'Near-shot pitch reversals/s', near_shot_peak_offset_seconds: 'Near-shot speed peak offset (seconds)'};
 const metricLabels = {mean_speed: 'Mean speed (degrees/s)', p95_speed: '95th percentile speed (degrees/s)', mean_accel: 'Mean absolute speed acceleration (degrees/s²)', p95_jerk: '95th percentile absolute speed jerk (degrees/s³)', covered_seconds: 'Covered time (seconds)'};
 const number = new Intl.NumberFormat(undefined, {maximumSignificantDigits: 5});
 function plot(w, values, label) {
@@ -117,7 +119,25 @@ function render() {
     + (w.weapon ? ' · ' + w.weapon : '') + ' · ' + w.shot_count + (w.shot_count === 1 ? ' shot' : ' shots');
   byId('plots').innerHTML = plot(w, w.yaw, 'Yaw (degrees, unwrapped)')
     + plot(w, w.pitch, 'Pitch (degrees)') + plot(w, w.speed, 'Angular speed (degrees/s)');
+  const profile = byId('shot-time-profile');
+  profile.hidden = !w.shot_time_profile;
+  profile.replaceChildren();
+  if (w.shot_time_profile) {
+    const title = document.createElement('h2'), note = document.createElement('p'), list = document.createElement('dl');
+    title.textContent = 'Direction and shot timing';
+    note.textContent = 'Before, at, and after refer to the nearest shot. Positive peak timing means after that shot. A dash indicates no eligible observations.';
+    for (const [key, label] of Object.entries(profileLabels)) {
+      const group = document.createElement('div'), term = document.createElement('dt'), detail = document.createElement('dd');
+      term.textContent = label;
+      const value = w.shot_time_profile[key];
+      detail.textContent = value === null ? '—' : number.format(value);
+      group.append(term, detail);
+      list.append(group);
+    }
+    profile.append(title, note, list);
+  }
   const context = byId('movement-context');
+  context.hidden = !w.movement_context;
   context.replaceChildren();
   if (w.movement_context) {
     const title = document.createElement('h2');

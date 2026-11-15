@@ -1,4 +1,4 @@
-# AimGuard v0.4 — Firearm Replay Analysis
+# AimGuard v0.5 — Shot Timing and Direction Analysis
 
 An offline CS2 telemetry prototype. It segments active rounds and player lives,
 matches player combat events, and describes view-angle movement around shots.
@@ -28,7 +28,7 @@ python -m aimguard.cs2 data/raw/your-end-vs-damajuana-m1-cache.dem --list-player
 Run the current firearm analysis (the selected player below was used in earlier validation):
 
 ```sh
-python -m aimguard.gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v04/slender
+python -m aimguard.gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v05/slender
 ```
 
 Optional settings: `--pre-seconds 0.5`, `--post-seconds 0.5`,
@@ -86,7 +86,7 @@ occurs before shot grouping, and weapon changes split groups. Each window record
 its normalized weapon name. Reports record excluded event counts by weapon,
 and events.json records the selection flag independently of active-life coverage.
 
-Version 0.4 adds `movement_context` alongside the existing full-window features.
+Version 0.4 added `movement_context` alongside the existing full-window features.
 `--near-shot-seconds` defaults to 0.1 seconds. A speed interval is near a shot
 when its ending tick is within that radius of any grouped shot. Remaining
 intervals are surrounding movement. Acceleration requires two consecutive speed
@@ -99,6 +99,20 @@ included for interpretation.
 This timing radius is configurable and has not been validated as a detection
 threshold. Replay reviews shade near-shot periods and show both summaries.
 Older reports still open with their original full-window measurements.
+
+Version 0.5 adds `shot_time_profile` for each window. Every near-shot speed
+interval references its nearest grouped shot; equal-distance ties reference the
+earlier shot. Before, at, and after categories are disjoint. The profile includes
+before/after p95 speed, at-shot median speed, a log1p before/after speed difference,
+near-shot stop fraction, mean turn angle, axis reversal rates, and the signed
+offset of the first near-shot speed peak. Stationary motion has no peak timing.
+These are movement descriptions; target error and recoil are not reconstructed.
+
+Direction features use adjacent intervals within near-shot periods. Axis
+reversals require both steps to be at least 0.05 degrees. Turn angles require
+nonzero adjacent yaw/pitch steps. Rates use covered near-shot duration, and
+missing observations remain null. Review pages display these measurements
+alongside their shot markers and original summaries.
 
 
 Nearby selected-player `weapon_fire` events are grouped within each segment;
@@ -182,7 +196,7 @@ After analyzing a replay, pass the player's output folder to the review command.
 For a batch run, use one of the `job_XXXX` folders.
 
 ```sh
-python -m aimguard.review outputs/v04/slender
+python -m aimguard.review outputs/v05/slender
 ```
 
 Open the resulting `review.html` in a browser. Use the window selector or

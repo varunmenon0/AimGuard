@@ -13,11 +13,11 @@ import numpy as np
 import pandas as pd
 
 from aimguard.core import angle_delta, extract_features
-from aimguard.combat import movement_context, selected_fire, weapon_names
+from aimguard.combat import movement_context, selected_fire, weapon_names, shot_time_profile
 
 ROUND_EVENTS = ('round_start', 'round_freeze_end', 'round_end')
 COMBAT_EVENTS = ('weapon_fire', 'player_hurt', 'player_death')
-FEATURE_VERSION = '0.4.1'
+FEATURE_VERSION = '0.5.0'
 
 
 def positive_finite(**values):
@@ -302,7 +302,8 @@ def extract_engagements(player, events, tickrate=64.0, pre_s=0.5, post_s=0.5, sh
                             'damage_taken_events': int((relevant['event_type'].eq('player_hurt') & incoming).sum()),
                             'kill_events': int((relevant['event_type'].eq('player_death') & outgoing).sum()),
                             'features': features,
-                            'movement_context': movement_context(trajectory, group, tickrate, near_shot_s)})
+                            'movement_context': movement_context(trajectory, group, tickrate, near_shot_s),
+                            'shot_time_profile': shot_time_profile(trajectory, group, tickrate, near_shot_s)})
     return windows, skipped
 
 
@@ -392,6 +393,7 @@ def analyze_demo(demo, steamid, output, tickrate=64.0, pre_s=0.5, post_s=0.5,
         'movement_context_definition': 'Speed intervals classified by ending tick within near_shot_seconds of any grouped shot. Acceleration/jerk require all supporting adjacent speed intervals in the same category. Null indicates no samples.',
         'dependencies': {name: importlib.metadata.version(name) for name in ('demoparser2', 'numpy', 'pandas', 'matplotlib')},
         'note': 'Shot-centered descriptive windows; no visibility checks, cheat classification, or punishment decisions. Padded windows may overlap.',
+        'shot_time_profile_definition': 'Intervals use the signed offset to the nearest grouped shot, with ties assigned to the earlier shot. Pre/on/post categories are disjoint. Direction changes require adjacent near-shot intervals and 0.05-degree axis steps. Turn angles require nonzero adjacent near-shot 2D steps. Rates use near-shot covered time; null indicates no eligible observations.',
         'correction_definition': 'Adjacent yaw/pitch steps with opposite signs, both at least 0.05 degrees; not verified target-relative corrections.',
         'source_event_counts': {name: len(events[name]) for name in ROUND_EVENTS + COMBAT_EVENTS},
         'data_quality': quality, 'engagement_count': len(windows), 'engagements': windows,
@@ -403,7 +405,7 @@ def analyze_demo(demo, steamid, output, tickrate=64.0, pre_s=0.5, post_s=0.5,
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='AimGuard v0.4 firearm replay diagnostics')
+    ap = argparse.ArgumentParser(description='AimGuard v0.5 firearm replay diagnostics')
     ap.add_argument('demo', type=Path)
     ap.add_argument('--steamid', required=True)
     ap.add_argument('--tickrate', type=float, default=64.0, help='Explicit timing assumption; verify for the recording')
@@ -413,7 +415,7 @@ def main(argv=None):
     ap.add_argument('--weapon-mode', choices=['firearms', 'all'], default='firearms')
     ap.add_argument('--near-shot-seconds', type=float, default=0.1)
     ap.add_argument('--max-plots', type=int, default=10)
-    ap.add_argument('--output', type=Path, default=Path('outputs/v04'))
+    ap.add_argument('--output', type=Path, default=Path('outputs/v05'))
     args = ap.parse_args(argv)
     try:
         report = analyze_demo(args.demo, args.steamid, args.output, args.tickrate,

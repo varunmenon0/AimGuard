@@ -60,3 +60,55 @@ def test_invalid_proximity_rejected(radius):
     player, matched, _ = segment_gameplay(telemetry(), events(), '123')
     with pytest.raises(ValueError, match='near_shot_s'):
         extract_engagements(player, matched, near_shot_s=radius)
+
+
+def test_nearest_shot_ties_assign_to_earlier_shot_with_disjoint_phases():
+    from aimguard.combat import shot_time_profile
+    frame = pd.DataFrame({'tick': np.arange(7), 'yaw': np.cumsum([0., 1., -1., 1., -1., 1., -1.]), 'pitch': 0.})
+    result = shot_time_profile(frame, [2, 4], 10, .2)
+    assert result['pre_shot_intervals'] == 1
+    assert result['on_shot_intervals'] == 2
+    assert result['post_shot_intervals'] == 3
+    assert result['near_shot_yaw_reversals'] == 5
+    assert result['near_shot_yaw_reversals_per_second'] == pytest.approx(5/.6)
+    assert result['near_shot_mean_turn'] == pytest.approx(np.pi)
+
+
+def test_direction_features_do_not_join_separate_near_shot_spans():
+    from aimguard.combat import shot_time_profile
+    steps = np.r_[np.ones(7), -np.ones(4)]
+    frame = pd.DataFrame({'tick': np.arange(12), 'yaw': np.r_[0, np.cumsum(steps)], 'pitch': 0.})
+    result = shot_time_profile(frame, [1, 9], 10, .11)
+    assert result['near_shot_yaw_reversals'] == 0
+    assert result['near_shot_mean_turn'] == pytest.approx(0.)
+    assert result['turning_pairs'] == 3
+
+
+def test_stationary_profile_distinguishes_no_motion_from_missing_turns():
+    from aimguard.combat import shot_time_profile
+    frame = pd.DataFrame({'tick': np.arange(8), 'yaw': 0., 'pitch': 0.})
+    result = shot_time_profile(frame, [3], 10, .2)
+    assert result['near_shot_stop_fraction'] == 1.
+    assert result['near_shot_mean_turn'] is None
+    assert result['near_shot_peak_offset_seconds'] is None
+    assert result['pre_post_speed_log_ratio'] == 0.
+    assert result['near_shot_yaw_reversals_per_second'] == 0.
+    json.dumps(result, allow_nan=False)
+
+
+def test_missing_near_shot_observations_are_not_filled_with_zero():
+    from aimguard.combat import shot_time_profile
+    frame = pd.DataFrame({'tick': np.arange(0, 16, 2), 'yaw': 1., 'pitch': 0.})
+    result = shot_time_profile(frame, [7], 10, .01)
+    assert result['pre_shot_intervals'] + result['on_shot_intervals'] + result['post_shot_intervals'] == 0
+    assert result['on_shot_median_speed'] is None
+    assert result['near_shot_stop_fraction'] is None
+    assert result['near_shot_yaw_reversals_per_second'] is None
+
+
+def test_shot_profile_uses_wrapped_yaw_differences():
+    from aimguard.combat import shot_time_profile
+    frame = pd.DataFrame({'tick': [0, 1, 2], 'yaw': [179., -179., -177.], 'pitch': 0.})
+    result = shot_time_profile(frame, [1], 64, .1)
+    assert result['on_shot_median_speed'] == pytest.approx(128.)
+    assert result['near_shot_yaw_reversals'] == 0
