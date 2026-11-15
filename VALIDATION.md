@@ -150,3 +150,39 @@ structural violations. All 1,599 retained-health non-alive samples remain exclud
 The original frozen baseline results were preserved. No revised detection rate
 was computed from this extraction fix. All 84 tests pass, including both known
 non-alive states and segment-boundary preservation.
+
+## Temporal movement development, version 0.5
+
+The six study cases and the 11 previously evaluated cases were explicitly
+combined into a development pool. It contains 17 distinct selected targets and
+matches, with eight cheating labels and nine legitimate labels. No case in this
+pool is treated as a fresh held-out evaluation case.
+
+All 17 cases were reprocessed with firearm selection, a 100 ms shot radius,
+0.5-second padding, and assumed 64 Hz timing. The resulting 1,316 windows passed
+structural validation. All cases retain round-event warnings. The previously
+abstaining case contributes 53 windows with retained-health non-alive samples
+excluded. Original baseline-v1 artifacts and metrics were preserved.
+
+The extractor adds nearest-shot before/at/after speed summaries, a before/after
+log speed difference, near-shot stop fraction, turn angle, axis reversal rates,
+and signed peak timing. Categories partition the near-shot speed intervals.
+Tests cover ties, disjoint periods, stationary movement, missing observations,
+yaw wrapping, and retained-health life states. Current and legacy report scripts
+passed programmatic rendering and navigation checks; local-file browser policy
+prevents automated visual browser verification.
+
+The development comparison exports six temporal distributions, case summaries,
+report/manifest hashes, and 36 shared-weapon comparisons. Shared-weapon summaries
+weight cases equally. Display eligibility requires five eligible windows per
+case and two cases per label. These are reporting choices, with no detection
+threshold or accuracy claim.
+
+Substantial label-group overlap remains. Most case medians for directional
+reversal rates are zero. The original blatant study examples show larger turn
+angles and more reversals than most additional cheating-labeled cases. The new
+measurements have not demonstrated improved held-out detection performance.
+
+The 90-test suite passes. Additional coverage rejects mixed extraction settings
+before producing development comparisons. Generated demos, identity metadata,
+analysis outputs, and charts remain excluded from Git.

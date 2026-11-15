@@ -241,6 +241,23 @@ analyzed cases, with abstentions reported separately. The first local run flagge
 legitimate case abstaining. These results motivate further development and more
 representative data. See VALIDATION.md for limits and evaluation-set usage.
 
+### Development comparisons
+
+The expanded local development manifest contains the six study cases and the
+11 cases already evaluated by baseline v1. All 17 cases are development evidence.
+The comparison command checks report identities and extraction settings, exports
+case summaries and provenance hashes, and compares cases within shared weapons.
+
+```sh
+python -m scripts.compare_development data/external/xguardian/development-v2-manifest.json outputs/xguardian/development-v2-analysis --output outputs/xguardian/development-v2-comparison
+```
+
+The command requires firearm-filtered reports with identical feature versions,
+timing settings, and assumed tick rates. Shared-weapon tables weight cases
+equally and display combinations with at least five eligible windows per case
+and at least two cases per label. These display cutoffs do not establish
+sufficient sample size for detection. The resulting comparisons are descriptive.
+
 ### Automatic test execution
 
 GitHub Actions runs `python -m pytest -q` on pushes and pull requests using
