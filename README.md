@@ -2,7 +2,6 @@
 
 An offline CS2 telemetry prototype. It segments active rounds and player lives,
 matches player combat events, and describes view-angle movement around shots.
-It does not classify players as cheating and is not a deployable anti-cheat.
 
 ## Setup
 
