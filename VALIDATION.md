@@ -608,3 +608,61 @@ membership, all 39 full-participant groups, complete per-case predictions and
 fold separation were independently verified. No historical model, threshold,
 reserved manifest or prediction changed. Guides are in docs/FAILURE_ANALYSIS.md;
 all generated data, identities and charts remain local and ignored by Git.
+
+## Negative acquisition-dynamics development experiment
+
+A separate experimental module evaluates pre-shot concentration/settling without
+changing any frozen extractor or classifier. The fixed hypothesis is that a
+concentrated player-supported angle closure followed by lower relative motion
+might be more specific than ordinary precision/acceleration alone.
+
+Features use the same geometrically selected opponent and a contiguous segment
+ending exactly one tick before the first shot, restricted to 500 ms and at least
+16 intervals. Positive observed error reduction is capped by the reduction a yaw
+step would create with bearing held fixed. Opponent motion alone does not create
+a supported acquisition. A qualifying transition needs net closure and total
+supported closure of at least three degrees. Concentration is the largest
+supported interval divided by total supported closure. Settling ratio uses the
+median relative speed strictly after that interval, divided by its relative
+speed, requiring three later pre-shot intervals. First peak ties choose the
+earlier interval. Missing settling is never imputed as zero.
+
+The case recipe requires five valid windows and three usable transitions. It
+uses transition fraction, median concentration and median settling ratio; a
+second recipe appends these to original tracking features. All choices were
+saved before fitting. C=1, balanced logistic regression, log1p, training-only
+scaling, cutoff 0.5, and the same 39 participant components remain fixed. These
+are unvalidated engineering cutoffs, not calibrated detection thresholds.
+
+There are 2,508 valid pre-shot windows, 613 qualifying transitions and 560 with
+observable settling. Every one of the 41 cases meets coverage; none abstains.
+
+| Recipe | True positives | Missed cheating labels | False positives | True negatives |
+| --- | ---: | ---: | ---: | ---: |
+| Pre-shot tracking, unchanged reference | 13 | 3 | 3 | 22 |
+| Speed plus tracking, unchanged reference | 13 | 3 | 3 | 22 |
+| Acquisition dynamics | 13 | 3 | 4 | 21 |
+| Tracking plus dynamics | 13 | 3 | 5 | 20 |
+
+Concentration medians are 0.14996 for cheating labels and 0.15196 for legitimate
+labels; settling ratio medians are 0.17586 and 0.16276. These sample summaries
+strongly overlap. The fixed new recipes do not improve the development confusion
+counts, adding false flags without more cheating-label flags. Neither is adopted,
+selected or frozen. No threshold/eligibility search followed these outcomes.
+This is inspected development feedback, not another independent evaluation.
+
+Tests cover abrupt versus smooth closure, opponent-only motion, stationary
+alignment, missing late settling, interrupted/noninteger samples, post-shot and
+other-opponent independence, yaw wrap, case coverage and baseline protocol
+rejection before fitting. All 184 tests pass. A synthetic exact-zero expectation
+was changed to a floating tolerance for approximately 1e-13-degree arithmetic
+roundoff; it does not affect the three-degree transition cutoff. A second run
+also adds receipt/label/group guards, reproducing all model predictions, scaler
+statistics and coefficients exactly. Baseline records and all full-participant
+fold boundaries were independently checked. Saved hashes match current source.
+
+The original frozen model still loads without code/runtime drift and its fresh
+8/8 cheating flags and 11/16 legitimate false flags are preserved. No new full-pool
+model or independent success claim is produced. Usage and interpretation are in
+docs/ACQUISITION_DYNAMICS.md. All replay data, identities and generated artifacts
+remain local and ignored by Git.
