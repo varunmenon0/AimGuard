@@ -129,8 +129,73 @@ def candidate_at_tick(frame, steamid, tick, deaths):
     return result.get('nearest_horizontal_candidate',{}).get('opponent_id')
 
 
-def analyze(manifest_path, analysis_root, output):
+def extract_case(case, directory):
+    """Canonical single-replay extractor shared by development and frozen scoring."""
     from demoparser2 import DemoParser
+    directory=Path(directory)
+    report=json.loads((directory/'report.json').read_text())
+    if (report['steamid']!=case['steamid'] or report['source_sha256']!=case['demo_sha256']
+        or digest(case['demo'])!=case['demo_sha256']):
+        raise ValueError('Tracking report/demo identity mismatch')
+    telemetry=pd.read_csv(directory/'telemetry.csv',dtype={'steamid':str})
+    if not telemetry.steamid.eq(case['steamid']).all() or telemetry.tick.duplicated().any():
+        raise ValueError('Tracking telemetry identity mismatch')
+    events=json.loads((directory/'events.json').read_text())
+    windows=report['engagements'];parts=[]
+    for window in windows:
+        part=telemetry.loc[telemetry.segment_id.eq(window['segment_id'])&telemetry.tick.between(window['start_tick'],window['end_tick'])]
+        if len(part)!=window['samples'] or not part.active.all():
+            raise ValueError('Tracking window telemetry mismatch')
+        parts.append(part)
+    ticks=sorted({int(t) for part in parts for t in part.tick})
+    parser=DemoParser(case['demo'])
+    frame=prepare(parser.parse_ticks(FIELDS,ticks=ticks)) if ticks else pd.DataFrame(columns=FIELDS+['tick','steamid'])
+    selected=frame.loc[frame.steamid.eq(case['steamid'])].set_index('tick')
+    # Check that replay re-extraction reproduces the selected player's inputs.
+    if ticks:
+        expected=telemetry.set_index('tick').loc[ticks]
+        actual=selected.reindex(ticks)
+        if not same_shooter_inputs(actual,expected):
+            raise ValueError('Replay geometry differs from saved shooter telemetry')
+    death_frame=parser.parse_event('player_death')
+    deaths=list(zip(identity_strings(death_frame['user_steamid']),death_frame['tick'])) if len(death_frame) else []
+    records=[];counts=Counter()
+    # Index once; window slicing avoids scanning the full replay for every track.
+    frame=frame.set_index('tick',drop=False).sort_index()
+    for window,part in zip(windows,parts):
+        local=frame.loc[window['start_tick']:window['end_tick']].reset_index(drop=True)
+        damage=matching_damage(events,window,case['steamid'])
+        recipients=sorted({event['opponent_id'] for event in damage})
+        first=window['shot_ticks'][0]
+        local_deaths=[(victim,int(tick)) for victim,tick in deaths if window['start_tick']<=tick<=window['end_tick']]
+        nearest=candidate_at_tick(local,case['steamid'],first,local_deaths)
+        before=candidate_at_tick(local,case['steamid'],first-1,local_deaths)
+        opponents=sorted(set(recipients)|{p for p in (nearest,before) if p is not None})
+        association='none' if not recipients else ('single_damage_recipient' if len(recipients)==1 else 'multiple_damage_recipients')
+        counts[association]+=1
+        if recipients and nearest:
+            counts['damage_windows_with_geometric_candidate']+=1
+            counts['nearest_in_damage_recipients']+=int(nearest in recipients)
+        if recipients and before:
+            counts['damage_windows_with_pre_shot_candidate']+=1
+            counts['pre_shot_nearest_in_damage_recipients']+=int(before in recipients)
+        tracks=[]
+        for opponent in opponents:
+            track=fixed_track(local,case['steamid'],opponent,part.tick.tolist(),window['shot_ticks'],report['assumed_tickrate_hz'],local_deaths)
+            track['association_sources']=(['window_damage_recipient'] if opponent in recipients else [])+(['nearest_at_first_shot'] if opponent==nearest else [])+(['nearest_before_first_shot'] if opponent==before else [])
+            tracks.append(track)
+            counts['tracks']+=1
+            counts['tracks_with_valid_intervals']+=int(track['full_window']['valid_intervals']>0)
+        records.append(dict(engagement_id=window['engagement_id'],weapon=window['weapon'],
+            shot_ticks=window['shot_ticks'],round_id=window['round_id'],association=association,
+            damage_recipients=recipients,damage_events=damage,nearest_at_first_shot=nearest,nearest_before_first_shot=before,tracks=tracks))
+    summary=dict(case_id=case['case_id'],label=case['label'],windows=len(windows),**dict(counts))
+    return dict(summary=summary,windows=records,
+        assumed_tickrate_hz=report['assumed_tickrate_hz'],demo_sha256=case['demo_sha256'],
+        input_sha256={name:digest(directory/name) for name in ('report.json','telemetry.csv','events.json')})
+
+
+def analyze(manifest_path, analysis_root, output):
     manifest=json.loads(Path(manifest_path).read_text())
     if manifest.get('role')!='development':
         raise ValueError('Tracking requires explicitly designated development data')
@@ -138,68 +203,11 @@ def analyze(manifest_path, analysis_root, output):
     summaries=[]
     for index,case in enumerate(manifest['cases'],1):
         directory=Path(analysis_root)/f'job_{index:04d}'
-        report=json.loads((directory/'report.json').read_text())
-        if (report['steamid']!=case['steamid'] or report['source_sha256']!=case['demo_sha256']
-            or digest(case['demo'])!=case['demo_sha256']):
-            raise ValueError('Tracking report/demo identity mismatch')
-        telemetry=pd.read_csv(directory/'telemetry.csv',dtype={'steamid':str})
-        if not telemetry.steamid.eq(case['steamid']).all() or telemetry.tick.duplicated().any():
-            raise ValueError('Tracking telemetry identity mismatch')
-        events=json.loads((directory/'events.json').read_text())
-        windows=report['engagements'];parts=[]
-        for window in windows:
-            part=telemetry.loc[telemetry.segment_id.eq(window['segment_id'])&telemetry.tick.between(window['start_tick'],window['end_tick'])]
-            if len(part)!=window['samples'] or not part.active.all():
-                raise ValueError('Tracking window telemetry mismatch')
-            parts.append(part)
-        ticks=sorted({int(t) for part in parts for t in part.tick})
-        parser=DemoParser(case['demo'])
-        frame=prepare(parser.parse_ticks(FIELDS,ticks=ticks)) if ticks else pd.DataFrame(columns=FIELDS+['tick','steamid'])
-        selected=frame.loc[frame.steamid.eq(case['steamid'])].set_index('tick')
-        # Check that replay re-extraction reproduces the selected player's inputs.
-        if ticks:
-            expected=telemetry.set_index('tick').loc[ticks]
-            actual=selected.reindex(ticks)
-            if not same_shooter_inputs(actual,expected):
-                raise ValueError('Replay geometry differs from saved shooter telemetry')
-        death_frame=parser.parse_event('player_death')
-        deaths=list(zip(identity_strings(death_frame['user_steamid']),death_frame['tick'])) if len(death_frame) else []
-        records=[];counts=Counter()
-        # Index once; window slicing avoids scanning the full replay for every track.
-        frame=frame.set_index('tick',drop=False).sort_index()
-        for window,part in zip(windows,parts):
-            local=frame.loc[window['start_tick']:window['end_tick']].reset_index(drop=True)
-            damage=matching_damage(events,window,case['steamid'])
-            recipients=sorted({event['opponent_id'] for event in damage})
-            first=window['shot_ticks'][0]
-            local_deaths=[(victim,int(tick)) for victim,tick in deaths if window['start_tick']<=tick<=window['end_tick']]
-            nearest=candidate_at_tick(local,case['steamid'],first,local_deaths)
-            before=candidate_at_tick(local,case['steamid'],first-1,local_deaths)
-            opponents=sorted(set(recipients)|{p for p in (nearest,before) if p is not None})
-            association='none' if not recipients else ('single_damage_recipient' if len(recipients)==1 else 'multiple_damage_recipients')
-            counts[association]+=1
-            if recipients and nearest:
-                counts['damage_windows_with_geometric_candidate']+=1
-                counts['nearest_in_damage_recipients']+=int(nearest in recipients)
-            if recipients and before:
-                counts['damage_windows_with_pre_shot_candidate']+=1
-                counts['pre_shot_nearest_in_damage_recipients']+=int(before in recipients)
-            tracks=[]
-            for opponent in opponents:
-                track=fixed_track(local,case['steamid'],opponent,part.tick.tolist(),window['shot_ticks'],report['assumed_tickrate_hz'],local_deaths)
-                track['association_sources']=(['window_damage_recipient'] if opponent in recipients else [])+(['nearest_at_first_shot'] if opponent==nearest else [])+(['nearest_before_first_shot'] if opponent==before else [])
-                tracks.append(track)
-                counts['tracks']+=1
-                counts['tracks_with_valid_intervals']+=int(track['full_window']['valid_intervals']>0)
-            records.append(dict(engagement_id=window['engagement_id'],weapon=window['weapon'],
-                shot_ticks=window['shot_ticks'],round_id=window['round_id'],association=association,
-                damage_recipients=recipients,damage_events=damage,nearest_at_first_shot=nearest,nearest_before_first_shot=before,tracks=tracks))
-        summary=dict(case_id=case['case_id'],label=case['label'],windows=len(windows),**dict(counts))
+        record=extract_case(case,directory)
+        summary=record['summary']
         summaries.append(summary)
-        write_json(output/f'case_{index:04d}.json',dict(summary=summary,windows=records,
-            assumed_tickrate_hz=report['assumed_tickrate_hz'],demo_sha256=case['demo_sha256'],
-            input_sha256={name:digest(directory/name) for name in ('report.json','telemetry.csv','events.json')}))
-        print(f"{case['case_id']}: {counts['tracks_with_valid_intervals']}/{counts['tracks']} tracks with consecutive samples",flush=True)
+        write_json(output/f'case_{index:04d}.json',record)
+        print(f"{case['case_id']}: {summary.get('tracks_with_valid_intervals',0)}/{summary.get('tracks',0)} tracks with consecutive samples",flush=True)
     write_json(output/'summary.json',dict(role='development_tracking_diagnostic',cases=summaries,
         manifest_sha256=digest(manifest_path),
         code_sha256={name:digest(Path(__file__).with_name(name)) for name in ('target_tracking.py','target_geometry.py','core.py','gameplay.py')},

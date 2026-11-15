@@ -419,3 +419,58 @@ fresh labeled evaluation cases. No full-pool deployment model or new frozen
 four-feature bundle was created in this experiment. Historical frozen baseline
 artifacts and all earlier diagnostics remain preserved. Fresh cases, rather than
 further threshold adjustment on these 17, are needed for the next performance claim.
+
+## Frozen four-feature candidate and fresh-evaluation workflow
+
+A new workflow freezes the combined speed/pre-shot-tracking candidate without
+changing its features, cutoff, or eligibility. Its canonical tracking extractor
+is shared by development and future evaluation. Re-extraction of all 17 local
+development cases reproduced their complete saved tracking records and feature
+vectors exactly, including all 1,300 eligible windows. The model is fitted on
+those 17 development cases after verification; training scores are not reported
+as detection performance. Exported logistic scores reproduce fitted scores to
+1e-12. The prior grouped development comparison remains unchanged.
+
+The frozen bundle records scaler, coefficients, cutoff, extraction configuration,
+64 Hz timing assumption, eligibility, feature order, Python/dependency versions,
+and hashes of all feature/scoring source modules. Load-time checks reject code,
+runtime, checksum, or protocol drift. The local model is stored separately from
+the original two-feature frozen baseline. No real fresh evaluation has run.
+
+Participant exclusions include all 17 development demos and three previously
+inspected tournament demos. The union of player-info and full identity-only tick
+streams identifies 170 development participants and 181 excluded participants
+in total. One older demo has an empty player-info table; identity-only ticks
+recover its participants without requesting aim or position fields. Complete
+identity streams also include disconnected/replaced players. Recomputed group
+memberships are identical to the original 15 components, so this check does not
+change the recorded development comparison.
+
+Metadata-only reservation verifies demo/source-label hashes and exact targets.
+It rejects any shared participant with recorded inspected data or between
+reserved evaluation matches, as well as duplicate targets, matches, and demos.
+A per-model registry prevents re-reserving the same participants under another
+filename. Uninspected status is an explicit caller declaration, not proof of
+non-use or annotation correctness. Label precision and cheat-subtype caveats
+remain applicable.
+
+Evaluation repeats preflight checks and writes exclusive central start receipts
+before feature extraction. Reservations are consumed even when analysis fails
+or the process is interrupted; copying a manifest does not bypass consumption.
+There is no fitting during evaluation. Scored cases and abstentions are recorded
+individually, with coverage, confusion counts, exact binomial intervals, and
+independence limitations. Source sampling can induce dependence despite disjoint
+recorded participant IDs.
+
+Tests exercise four-feature export, protocol/code/dependency drift, all-player
+and cross-evaluation overlap rejection, source tampering, reservation registry
+reuse, copied manifests, interruption/failure consumption, receipt ordering,
+metadata-only identity recovery, and a scored pipeline with fitting prohibited.
+A synthetic freeze fixture also verifies full export/loading and exact feature
+provenance. Usage is documented separately in docs/TRACKING_EVALUATION.md; the
+README remains free of the removed validation/next-steps section. All models,
+registries, demos, identities, and generated receipts stay local and ignored.
+
+All 157 automated tests pass for this milestone. The actual frozen bundle also
+passes checksum/runtime loading and all 17 extraction-equivalence receipts.
+Fresh evaluation remains pending; no independent detection result is claimed.
