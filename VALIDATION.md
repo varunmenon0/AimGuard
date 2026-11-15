@@ -364,3 +364,58 @@ threshold was changed; improved association agreement is not improved cheat
 detection. Visibility, vertical/hitbox geometry, recoil, and lag/subtick timing
 remain unresolved. All replay data, identities, and generated audit reports stay
 local and excluded from Git.
+
+## Fixed pre-shot tracking development comparison
+
+Four fixed recipes were compared using the same 17 development cases and 15
+connected participant components. Protocol choices were recorded before feature
+loading and fitting. The original speed/acceleration and timing/direction scores
+reproduce their earlier values exactly. The new recipes are pre-shot tracking
+alone and original speed/acceleration with those tracking measurements appended.
+
+The geometric opponent is selected at the exact tick before the first shot,
+without consulting damage recipients. Features use the contiguous segment ending
+at that tick, restricted to the preceding 200 ms: median absolute horizontal
+error and median absolute yaw-minus-bearing velocity. At least eight valid
+consecutive intervals are required per window, and five eligible windows per
+case. Rates at the first included sample are excluded because they can depend
+on an observation outside the period. Per-window medians are summarized by a
+case median. No hits-only filter or post-shot tracking samples are used.
+
+Of 1,316 windows, 1,300 meet eligibility; each case has 30–143 eligible windows.
+All 17 cases are scored with no abstentions. Missing coverage would produce an
+explicit abstention, with ineligible cases excluded from training rather than
+imputed. Original participant components remain intact even if a case abstains.
+All fitting/scaling uses eligible training groups only. New nonnegative features
+use log1p. Balanced logistic regression C=1 and cutoff 0.5 are unchanged. There
+was no parameter, feature-subset, threshold, or eligibility search in this run.
+
+| Recipe | True positives | Missed cheating labels | False positives | True negatives |
+| --- | ---: | ---: | ---: | ---: |
+| Speed/acceleration | 5 | 3 | 2 | 7 |
+| Timing/direction | 4 | 4 | 1 | 8 |
+| Pre-shot tracking | 6 | 2 | 3 | 6 |
+| Speed plus tracking | 6 | 2 | 0 | 9 |
+
+The combined recipe catches E-09/E-11 and clears E-01/E-08 relative to the original
+speed recipe, but newly misses D-2A. E-05 remains missed. D-3A scores 0.4790, near
+the fixed 0.5 cutoff. This is a promising development tradeoff, not demonstrated
+robustness or zero false-positive risk. All cases influenced prior development;
+source labels do not specify aimbot activation. Nine legitimate cases are too
+few to establish a reliable low false-positive rate. CV training folds overlap,
+so independent binomial confidence intervals are not reported.
+
+New tests verify independence from damage recipient/post-shot tracking values,
+contiguous support and exact endpoints, window/case eligibility, rate boundaries,
+abstention denominators, missing-group handling, and checksum mismatch rejection
+before fitting. All 141 tests pass. Saved hashes, identical original scores,
+original group membership, and complete group isolation were independently
+checked across all four recipes. The four-panel static chart was visually
+inspected. Generated reports/data stay local; no browser visual QA is claimed.
+
+This is the appropriate checkpoint to stop tuning these cases. The combined
+recipe is a candidate for a new freeze-and-evaluate workflow before acquiring
+fresh labeled evaluation cases. No full-pool deployment model or new frozen
+four-feature bundle was created in this experiment. Historical frozen baseline
+artifacts and all earlier diagnostics remain preserved. Fresh cases, rather than
+further threshold adjustment on these 17, are needed for the next performance claim.

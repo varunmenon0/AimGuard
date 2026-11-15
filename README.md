@@ -399,3 +399,40 @@ The local audit index links to exact window/opponent selections in the tracking
 viewers using `#w=WINDOW_INDEX&t=TRACK_INDEX`. Invalid indices fall back to the
 first selection. Damage occurrences in overlapping windows are reported separately
 from distinct source damage records; neither is treated as an independent trial.
+
+### Grouped comparison with pre-shot tracking
+
+```sh
+python -m aimguard.tracking_models data/external/xguardian/development-v2-manifest.json outputs/xguardian/development-v2-analysis outputs/xguardian/target-tracking --output outputs/xguardian/tracking-models
+python -m scripts.render_development_diagnostics outputs/xguardian/tracking-models
+```
+
+This command records fixed recipes before loading features or fitting models.
+It compares the two existing recipes, pre-shot tracking alone, and speed plus
+tracking. The two tracking features are absolute horizontal aim error and
+absolute yaw-minus-opponent-bearing velocity. They summarize the contiguous
+recorded segment ending exactly one tick before the first shot, within the
+preceding 200 ms. A window needs eight valid intervals; a case needs five eligible
+windows. Window medians are aggregated into one equally weighted case row.
+
+Only the geometric candidate selected before the first shot is used. Damage
+recipients, hit-only windows, and post-shot tracking samples do not select or
+supply the new features. Missing coverage produces explicit abstention rather
+than imputation. Models keep the original participant components together, with
+training-fold scaling and balanced logistic regression C=1 and cutoff 0.5.
+The combined recipe appends tracking measurements to original speed/acceleration;
+all four nonnegative features use log1p before training-only scaling.
+
+On the previously inspected 17-case development pool, speed plus tracking flags
+6/8 cheating-labeled cases and 0/9 legitimate cases. Tracking alone flags 6/8
+with 3/9 false flags. No threshold, eligibility, or parameter search was performed.
+This is development evidence, not independent accuracy: feature choices were
+informed by this pool, labels are not aimbot-specific, and nine legitimate cases
+cannot establish a dependable low false-positive rate.
+
+Protocol and input receipts precede fitting. Outputs retain per-case features,
+coverage, hashes, groups, fold training/held-out IDs, scalers, coefficients, and
+scores. The generic renderer supports every recorded recipe without refitting.
+No deployment model is fitted on the full pool. The historical two-feature
+`aimguard.baseline freeze` workflow does not freeze this four-feature candidate;
+a matching freeze/evaluation workflow is required before fresh-data evaluation.
