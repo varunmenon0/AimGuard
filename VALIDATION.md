@@ -536,3 +536,75 @@ registries, and generated evaluation reports remain local and ignored by Git.
 Further work should investigate the false flags and improve legitimate-case
 coverage/measurement specificity before freezing another candidate. A new fresh
 cohort will be needed for the next independent performance claim.
+
+## False-flag arithmetic and feature/context diagnosis
+
+A post-evaluation diagnostic verifies model/source receipts and reconstructs all
+24 frozen scores from standardized log1p feature contributions and the intercept.
+This explains the model's arithmetic, not a causal reason for player behavior.
+The frozen candidate, threshold, and fresh evaluation remain unchanged.
+
+The original nine legitimate cases have median near-shot acceleration 300.517,
+versus 462.999 in the 16 newly inspected legitimate cases. Median pre-shot
+horizontal error is 4.5731 degrees versus 2.7748 degrees. Both differences push
+this fitted model toward more flags. The mean legitimate margin shifts from
+-1.3910 to +0.1416: acceleration contributes approximately +0.8397 of this change,
+horizontal error +0.7051, speed +0.2098, and relative velocity -0.2219. These are
+observed sample differences and an exact arithmetic decomposition, not a single
+proven cause of generalization failure.
+
+Acceleration is the largest positive feature term in seven false flags; tighter
+horizontal alignment is largest in four. Seven of the 11 false flags lie inside
+the original legitimate minimum/maximum range on every feature, so simple
+marginal range checks would not reject them. Predictive feature overlap remains.
+
+The difference persists in descriptive shared-weapon summaries. For AK-47, nine
+eligible legitimate cases in each cohort have median case/window acceleration
+276.959 versus 534.037 and horizontal error 6.620 versus 3.037 degrees. These
+summaries require five jointly eligible windows per case and two cases per
+cohort, with equal case weighting. They are not the original mixed-weapon model
+inputs. This observation does not establish causality or fully control weapon,
+skill, range, visibility, or recoil; weapon mix alone is not a sufficient
+explanation for the observed difference.
+
+Local reports include feature distributions, margin shifts, every preserved
+evaluation decision, and 24 trajectory viewers. Scientific charts were visually
+inspected. Viewer scripts passed mock-DOM navigation through 1,273 windows and
+1,478 tracks with finite coordinates. No browser visual QA is claimed.
+
+## Expanded inspected development pool and fixed comparison
+
+The original 17 cases and consumed 24-case evaluation are now explicitly combined
+into development data: 41 cases, with 16 cheating labels and 25 legitimate labels,
+in 39 connected full-participant components. Verified local links reuse existing
+artifacts without copying/relabeling demos or modifying the frozen evaluation.
+All targets, matches, and demo hashes are unique; source receipts preserve the
+original case identities. The prior fresh cohort is not a reusable holdout.
+
+The four existing recipes were compared once with unchanged C=1, cutoff 0.5,
+transformations and eligibility rules. Whole components are held out; all
+scaling/fitting uses eligible training groups only. All cases scored.
+
+| Recipe | True positives | Missed cheating labels | False positives | True negatives |
+| --- | ---: | ---: | ---: | ---: |
+| Speed/acceleration | 11 | 5 | 8 | 17 |
+| Timing/direction | 10 | 6 | 3 | 22 |
+| Pre-shot tracking | 13 | 3 | 3 | 22 |
+| Speed plus tracking | 13 | 3 | 3 | 22 |
+
+These are post-feedback development diagnostics, not independent improvements or
+revised evaluation estimates. Tracking alone and speed plus tracking have the
+same aggregate counts; the additional speed features have not demonstrated an
+aggregate benefit here. The remaining three legitimate false flags are still
+material, and neither recipe is selected or frozen as a replacement. Broader
+legitimate coverage changes development behavior but does not establish a reliable
+low false-positive rate. A new fresh evaluation will be required after further
+development; the original frozen 8/8 and 11/16 result remains the recorded failure.
+
+All 175 tests pass, including contribution reconstruction, cohort/label separation,
+receipt rejection before output, shared-weapon identity checks, explicit inspected
+pool roles, immutable source reuse, and duplicate/checksum rejection. Exact pool
+membership, all 39 full-participant groups, complete per-case predictions and
+fold separation were independently verified. No historical model, threshold,
+reserved manifest or prediction changed. Guides are in docs/FAILURE_ANALYSIS.md;
+all generated data, identities and charts remain local and ignored by Git.
