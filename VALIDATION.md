@@ -218,3 +218,17 @@ provenance and chart formatting; it did not change the recipes or cutoff.
 The 95-test suite passes, including transitive participant grouping, training-only
 scaling, one prediction per case, single-class abstention, and invalid-input checks.
 All identity metadata, demo files, diagnostic reports, and plots remain local.
+
+## Development error inspection queue
+
+The saved grouped predictions yield two shared misses, E-05 and E-09. Their
+103 and 160 firearm windows include 47 and 89 windows with damage events,
+respectively. A lack of recorded combat windows alone does not explain either
+miss. These are coverage observations, not causal diagnoses or activation labels.
+False flags occur on D-3A for timing/direction and E-01/E-08 for speed/acceleration.
+
+The local review index links all 17 trajectory viewers and records per-case
+weapons, damage/kill window counts, eligible measurements, model outcomes, and
+provenance. Every case starts with explicit unreviewed status and no causal
+explanation. Tests reject altered manifest receipts and unsafe case identifiers
+before creating output. No model, threshold, or historical prediction changed.

@@ -301,3 +301,17 @@ The 17-case development run formed 15 groups. Speed/acceleration found 5/8
 cheating-labeled cases with 2/9 false flags; timing/direction found 4/8 with 1/9
 false flags. These are exploratory diagnostics on previously inspected data,
 not fresh held-out accuracy estimates. Neither recipe is selected for deployment.
+
+### Development error review queue
+
+```sh
+python -m aimguard.error_review data/external/xguardian/development-v2-manifest.json outputs/xguardian/development-v2-analysis outputs/xguardian/development-model-diagnostics-v2 --output outputs/xguardian/error-review
+```
+
+This verifies the diagnostic manifest/report hashes, preserves both models'
+predictions, and generates a local index linking trajectory viewers for all
+cases. The queue includes error categories, weapon mix, eligible measurements,
+and windows with damage or kills. Shared misses are listed first. All cases
+start as unreviewed: combat counts and match labels do not establish why a model
+failed or which ticks contain cheating. The viewer shows recorded aim charts,
+not rendered CS2 gameplay. Choose a new output directory for each run.
