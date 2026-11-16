@@ -666,3 +666,49 @@ The original frozen model still loads without code/runtime drift and its fresh
 model or independent success claim is produced. Usage and interpretation are in
 docs/ACQUISITION_DYNAMICS.md. All replay data, identities and generated artifacts
 remain local and ignored by Git.
+
+## Sampled combat evidence and 3D field feasibility audit
+
+A fixed post-evaluation sample covers R-002/R-014/R-013 false flags, legitimate
+unflagged comparisons R-001/R-003, and cheating-labeled flagged R-017. Each provides
+three chronological windows with matching positive damage at/after the first shot
+and three without, totaling 36. Earlier padding damage is separate. This is a
+selected diagnostic sample, not an accuracy estimate.
+
+Every selected case's frozen score, replay/report/tracking/telemetry checksums,
+exact damage links and original horizontal candidates reproduce. Sparse field
+extraction matches saved shooter X/Y/Z, yaw/pitch, health, state and team values
+at source precision. There are 33 comparable exact pre-first-shot snapshots;
+three R-013 shooter samples are absent from both saved telemetry and sparse
+extraction. Missing samples are not interpolated or declared legitimate evidence.
+
+All six demos omit the requested view-offset vector/axis columns. Recoil,
+crouch, scoped/weapon, spotted/mask, head-constraint and hitbox-set fields are
+returned. Head-constraint vectors are mostly zero with occasional nonzero values;
+no measured world eye/head or hitbox coordinates were validated. Column omission
+and observed zeros remain distinct statuses. Neither spotted fields nor hitbox
+indices are promoted to visibility or head-position ground truth.
+
+A separate body-origin ray proxy includes recorded Z and pitch using the documented
+Source SDK view-vector convention. It is not eye-to-head/hitbox aim error and uses
+no invented eye/head heights or guessed recoil correction. It changes the nearest
+candidate in one of 33 comparable snapshots, in unflagged control R-003. For 18
+damage-bearing windows, initial candidate/event-recipient set agreement is 14/18
+for horizontal ranking and 15/18 for the origin proxy. These are not intended-target
+accuracy figures. The sample does not establish vertical ambiguity as the false-
+flag cause and does not justify changing classifier inputs.
+
+The renderer keeps all 36 game-review bookmarks explicitly pending. Eye/head
+geometry and visibility remain unverified; attempts to promote the proxy audit
+into validated geometry are rejected. No rendered CS2 gameplay was opened; the
+standard application/Steam locations checked did not contain CS2. A local review
+template records demo paths and precise ticks for later rendered-gameplay review.
+No model, threshold or recorded outcome changed.
+
+Tests cover Source-convention vertical proxy geometry, yaw/height ranking,
+coincident/invalid origins, death states and missing samples, exact property
+omission versus observed zero, padding-aware window selection, source receipt
+rejection, HTML escaping, checksum validation and pending-review semantics.
+All 194 automated tests pass. Six case receipts, plan/source hashes, 36 pending
+bookmarks and frozen runtime integrity were independently verified. Details are
+in docs/MEASUREMENT_AUDIT.md; all observations and identities remain local.
