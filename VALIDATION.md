@@ -733,3 +733,12 @@ The combined pool contains 55 cases (16 cheating, 39 legitimate) in 53 connected
 These are post-feedback development diagnostics, not fresh performance estimates. False flags remain too frequent for the intended goal. The previous independent frozen result (TP8/FN0/FP11/TN5) remains unchanged. Frozen model and runtime hashes were rechecked; cached archive length is unchanged. All demos, identities, models, receipts and generated reports remain local and ignored by Git.
 
 All 204 tests pass, including fold-local context references, cache-only zero-download behavior, single-label development acquisition and extension manifest guards. Local reports are in outputs/xguardian/weapon-context-v1 and outputs/xguardian/development-v4-models.
+
+
+## Fixed nonlinear model capacity check
+
+One RBF support-vector recipe tested nonlinear interactions of the same four speed/tracking measurements on the inspected 55-case, 53-participant-component development pool. Log1p, scaling, balanced class weights and kernel width use training groups only. C=1 and decision cutoff zero were fixed before fitting; no calibration, parameter/feature/cutoff search or full-pool fit occurred. Decision margins are not probabilities.
+
+The copied linear baseline remains TP13/FN3/FP5/TN34. The fixed RBF recipe gave TP12/FN4/FP5/TN34, zero abstentions. It missed one additional cheating-labeled case and retained the same five legitimate false flags; it is not adopted or frozen. Local output includes error/decision-change links for trajectory review. No claim is made that changing model family resolves the measurement or labeling limits.
+
+All 55 saved decision margins independently reconstruct from the recorded training scaler, gamma, support cases, dual coefficients and intercept. Baseline predictions are unchanged and frozen runtime integrity passes. All 218 tests pass, including participant leakage, margin reconstruction, missing/single-class coverage, constant inputs and tampered development receipt rejection. See docs/NONLINEAR_MODELS.md. The previous independent frozen result remains unchanged.
