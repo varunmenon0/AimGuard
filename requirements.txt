@@ -4,3 +4,5 @@ pytest>=8,<10
 demoparser2
 pandas
 matplotlib
+scipy>=1.11,<2
+zstandard>=0.25,<1

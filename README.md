@@ -1,12 +1,11 @@
-# AimGuard v0.3 — Shot-Centered Replay Analysis
+# AimGuard v0.5 — Shot Timing and Direction Analysis
 
 An offline CS2 telemetry prototype. It segments active rounds and player lives,
 matches player combat events, and describes view-angle movement around shots.
-It does not classify players as cheating and is not a deployable anti-cheat.
 
 ## Setup
 
-Python 3.12 is used for local validation. From this repository:
+Use Python 3.12. From this repository:
 
 ```powershell
 py -3 -m venv .venv
@@ -25,10 +24,10 @@ Find a player's SteamID with the existing diagnostic command:
 python -m aimguard.cs2 data/raw/your-end-vs-damajuana-m1-cache.dem --list-players
 ```
 
-Run v0.3 (the selected player below is the one used in the saved analysis):
+Run the current firearm analysis:
 
 ```sh
-python -m aimguard.gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v03/slender
+python -m aimguard.gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v05/slender
 ```
 
 Optional settings: `--pre-seconds 0.5`, `--post-seconds 0.5`,
@@ -63,10 +62,11 @@ for each player or configuration to keep analyses distinct.
   freeze-ends are reported and ignored. Missing round ends close at the next
   start or recording end and are reported. For simultaneous transitions, an end
   is processed before a start, then a freeze-end.
-- Positive health must agree with life state `0`; the input's life-state/health
-  distribution is included in the report. Positive health with another finite
-  life-state code fails verification instead of silently changing semantics.
-  Known states `1` and `2` are non-alive. Unknown or nonfinite samples are excluded.
+- Life state `0` and positive health are required for alive samples. Known
+  states `1` and `2` are excluded even when older demos retain positive health.
+  Reports count these retained-health samples and include the state/health
+  distribution. Positive health on playing teams with an unknown finite state
+  fails verification. Other unknown or nonfinite samples are excluded.
 - Only teams `2` and `3`, positive health, valid life state `0`, finite required
   telemetry, and pitch within [-90, 90] are eligible during active play.
 - Victim death events exclude the death tick, even with delayed health updates.
@@ -77,6 +77,42 @@ for each player or configuration to keep analyses distinct.
   stable sort. Unlocatable invalid tick values cause an error.
 
 ## Shot-centered windows and features
+
+New analyses default to `--weapon-mode firearms`. The explicit firearm list
+excludes knives, utility, tasers, and unknown/missing weapon names. Use
+`--weapon-mode all` to include all weapon-fire events for diagnostics. Filtering
+occurs before shot grouping, and weapon changes split groups. Each window records
+its normalized weapon name. Reports record excluded event counts by weapon,
+and events.json records the selection flag independently of active-life coverage.
+
+Version 0.4 added `movement_context` alongside the existing full-window features.
+`--near-shot-seconds` defaults to 0.1 seconds. A speed interval is near a shot
+when its ending tick is within that radius of any grouped shot. Remaining
+intervals are surrounding movement. Acceleration requires two consecutive speed
+intervals in the same category, and jerk requires three. Disjoint periods are
+never joined to calculate derivatives. Samples at category boundaries may
+therefore contribute to full-window derivatives only. Empty categories report
+null measurements and zero sample counts. Covered durations and counts are
+included for interpretation.
+
+This timing radius is configurable and has not been validated as a detection
+threshold. Replay reviews shade near-shot periods and show both summaries.
+Older reports still open with their original full-window measurements.
+
+Version 0.5 adds `shot_time_profile` for each window. Every near-shot speed
+interval references its nearest grouped shot; equal-distance ties reference the
+earlier shot. Before, at, and after categories are disjoint. The profile includes
+before/after p95 speed, at-shot median speed, a log1p before/after speed difference,
+near-shot stop fraction, mean turn angle, axis reversal rates, and the signed
+offset of the first near-shot speed peak. Stationary motion has no peak timing.
+These are movement descriptions; target error and recoil are not reconstructed.
+
+Direction features use adjacent intervals within near-shot periods. Axis
+reversals require both steps to be at least 0.05 degrees. Turn angles require
+nonzero adjacent yaw/pitch steps. Rates use covered near-shot duration, and
+missing observations remain null. Review pages display these measurements
+alongside their shot markers and original summaries.
+
 
 Nearby selected-player `weapon_fire` events are grouped within each segment;
 successive shots at most `--shot-gap-seconds` apart belong to one group.
@@ -105,63 +141,12 @@ weapon-specific recoil compensation, and target acquisition are not implemented.
 - `python -m aimguard.cs2 DEMO --steamid ID --output outputs/cs2` retains the older
   unfiltered whole-replay diagnostic workflow. Its fixed windows use absolute
   tick bins and one shared preceding sample to retain boundary movement. It
-  does not apply v0.3 gameplay filtering.
+  does not apply gameplay filtering.
 - `python -m aimguard.demo --output outputs/synthetic_report.json` retains the
   separate synthetic classifier smoke test. Its intentionally different synthetic
   styles and session split do not establish real-world detection performance.
 - `scripts/inspect_demo.py` is the existing local property/event inspection script.
 
-## Validation and next steps
+## License
 
-### Batch replay validation
-
-Create a JSON array of jobs (see `examples/replay-validation.json`). Each job
-requires `demo`, an exact string `steamid`, and an explicit numeric `tickrate`.
-Demo paths are relative to the manifest file. Add jobs for additional matches
-or players; duplicate replay-path/player pairs are rejected.
-
-```sh
-python -m aimguard.batch examples/replay-validation.json --output outputs/validation/cache-three-players --max-plots 3
-```
-
-The destination must be new, preventing stale results from being mistaken for
-fresh analysis. Each job exports the usual analysis artifacts in its own folder.
-`summary.md` compares coverage and window counts; `summary.json` also records
-excluded event counts, round anomalies, skipped groups, errors, and individual
-window violations. One failed job does not stop the remaining jobs.
-
-The validator checks every exported window for active samples, one round and
-segment, no selected-player death crossings or recording gaps, shot matching,
-sample bounds, and finite features. A nonzero exit code indicates analysis errors
-or validation violations. Empty active coverage, zero shooting windows, and round
-event anomalies produce warnings requiring review; warnings alone exit zero.
-Inspect the representative plots manually, including sharp turns and clipped
-windows. Passing structural checks does not establish detection accuracy.
-
-The included manifest selects three players from the one locally available
-Cache replay. That exercises multiple players but is still only one match.
-Distinct replay contents are counted by SHA-256 so copies cannot inflate match
-coverage. Additional replay files are needed for cross-match validation.
-
-### Automatic tests
-
-GitHub Actions runs `python -m pytest -q` on pushes and pull requests using
-Python 3.12 on Linux. Tests use small fixtures and do not require private demos.
-Real replay validation remains a separate local command.
-
-Tests cover death-event lag, respawn, round transitions, missing/duplicate events,
-invalid samples, gaps, exact event identity matching, stable deduplication,
-window-boundary movement, and irregular-timestamp jerk.
-
-The existing Cache replay was validated with demoparser2 0.42.0, NumPy 2.5.4,
-pandas 3.1.1, and Matplotlib 3.11.2. Each report records its actual runtime versions.
-
-Next, visually review the shot windows and excluded periods, then add target
-positions/visibility and weapon context. A real labeled dataset, splits by player
-and match, calibrated scores, and false-positive estimates are prerequisites for
-detection evaluation. Live server ingestion, model inference, player-level risk
-aggregation, and review tooling remain future work.
-
-Never automatically punish players from this prototype. Keep unnecessary player
-identifiers out of shared artifacts; provide review and appeal mechanisms before
-any deployment.
+[MIT](LICENSE) © 2026 Varun Menon.

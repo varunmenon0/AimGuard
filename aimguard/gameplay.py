@@ -13,10 +13,11 @@ import numpy as np
 import pandas as pd
 
 from aimguard.core import angle_delta, extract_features
+from aimguard.combat import movement_context, selected_fire, weapon_names, shot_time_profile
 
 ROUND_EVENTS = ('round_start', 'round_freeze_end', 'round_end')
 COMBAT_EVENTS = ('weapon_fire', 'player_hurt', 'player_death')
-FEATURE_VERSION = '0.3.0'
+FEATURE_VERSION = '0.5.0'
 
 
 def positive_finite(**values):
@@ -150,14 +151,17 @@ def segment_gameplay(frame, events, steamid, tickrate=64.0, max_gap_s=0.25):
     # Verified against the input recording rather than silently assuming a code.
     positive_health = player['health'].gt(0)
     finite_life_health = np.isfinite(player[['health', 'life_state']]).all(axis=1)
-    inconsistent = positive_health & finite_life_health & player['life_state'].ne(0)
-    if inconsistent.any():
-        raise ValueError('Life-state verification failed: positive health with life_state != 0')
+    playing_team = player['team_num'].isin([2, 3]).to_numpy()
+    # Known non-alive states can retain spawn health in older recordings.
+    # They remain excluded even when the health field has not caught up.
     valid_state = player['life_state'].isin([0, 1, 2]).to_numpy()
+    inconsistent = playing_team & positive_health & finite_life_health & ~valid_state
+    if inconsistent.any():
+        raise ValueError('Life-state verification failed: positive health with unknown life_state')
+    retained_health = playing_team & positive_health & player['life_state'].isin([1, 2])
     valid_angles = player['pitch'].between(-90, 90).to_numpy()
     valid = finite & valid_state & valid_angles
     alive = (positive_health & player['life_state'].eq(0)).to_numpy()
-    playing_team = player['team_num'].isin([2, 3]).to_numpy()
     intervals, anomalies = round_intervals(events, int(tick[-1]) + 1)
     rounds = np.full(len(player), -1, dtype=int)
     round_starts = np.full(len(player), -1, dtype=int)
@@ -219,7 +223,9 @@ def segment_gameplay(frame, events, steamid, tickrate=64.0, max_gap_s=0.25):
         'sample_counts_by_reason': {str(k): int(v) for k, v in pd.Series(reason).value_counts().items()},
         'active_duration_seconds': active_duration,
         'recording_duration_seconds': float((tick[-1] - tick[0]) / tickrate),
-        'life_state_verified': bool((positive_health & finite_life_health).any()), 'life_state_summary': life_summary,
+        'life_state_verified': bool((playing_team & positive_health & player['life_state'].eq(0)).any()),
+        'non_alive_positive_health_samples': int(retained_health.sum()),
+        'life_state_summary': life_summary,
         'active_round_intervals': intervals, 'round_event_anomalies': anomalies,
         'recording_gaps': int(gaps.sum()), 'max_gap_seconds': max_gap_s,
     }
@@ -251,24 +257,31 @@ def correction_counts(yaw, pitch, threshold=0.05):
     return counts
 
 
-def extract_engagements(player, events, tickrate=64.0, pre_s=0.5, post_s=0.5, shot_gap_s=0.5):
-    positive_finite(tickrate=tickrate, shot_gap_s=shot_gap_s)
+def extract_engagements(player, events, tickrate=64.0, pre_s=0.5, post_s=0.5, shot_gap_s=0.5,
+                        weapon_mode='firearms', near_shot_s=0.1):
+    positive_finite(tickrate=tickrate, shot_gap_s=shot_gap_s, near_shot_s=near_shot_s)
     for name, value in [('pre_s', pre_s), ('post_s', post_s)]:
         if not np.isfinite(value) or value < 0:
             raise ValueError(f'{name} must be finite and nonnegative')
     windows, skipped = [], []
-    shots = events.loc[events['event_type'].eq('weapon_fire') & events['segment_id'].ge(0)]
+    shots = events.loc[selected_fire(events, weapon_mode) & events['segment_id'].ge(0)].copy()
+    shots['normalized_weapon'] = weapon_names(shots)
     for segment_id, part in player.loc[player['active']].groupby('segment_id', sort=True):
-        shot_ticks = np.sort(shots.loc[shots['segment_id'].eq(segment_id), 'tick'].to_numpy(dtype=int))
-        groups = np.split(shot_ticks, np.flatnonzero(np.diff(shot_ticks) / tickrate > shot_gap_s) + 1)
-        for group in groups:
-            if not len(group):
+        segment_shots = shots.loc[shots['segment_id'].eq(segment_id)].sort_values('tick', kind='stable')
+        shot_ticks = segment_shots['tick'].to_numpy(dtype=int)
+        weapons = segment_shots['normalized_weapon'].to_numpy()
+        breaks = (np.diff(shot_ticks) / tickrate > shot_gap_s) | (weapons[1:] != weapons[:-1])
+        groups = np.split(np.arange(len(shot_ticks)), np.flatnonzero(breaks) + 1)
+        for indices in groups:
+            if not len(indices):
                 continue
+            group = shot_ticks[indices]
             lo = max(int(part['tick'].iloc[0]), int(np.ceil(group[0] - pre_s * tickrate)))
             hi = min(int(part['tick'].iloc[-1]), int(np.floor(group[-1] + post_s * tickrate)))
             trajectory = part.loc[part['tick'].between(lo, hi)]
             info = {'segment_id': int(segment_id), 'round_id': int(part['round_id'].iloc[0]),
-                    'shot_ticks': group.tolist(), 'shot_count': len(group)}
+                    'shot_ticks': group.tolist(), 'shot_count': len(group),
+                    'weapon': str(weapons[indices[0]])}
             if len(trajectory) < 8:
                 skipped.append({**info, 'reason': 'fewer_than_8_samples', 'samples': len(trajectory)})
                 continue
@@ -288,7 +301,9 @@ def extract_engagements(player, events, tickrate=64.0, pre_s=0.5, post_s=0.5, sh
                             'damage_dealt_events': int((relevant['event_type'].eq('player_hurt') & outgoing).sum()),
                             'damage_taken_events': int((relevant['event_type'].eq('player_hurt') & incoming).sum()),
                             'kill_events': int((relevant['event_type'].eq('player_death') & outgoing).sum()),
-                            'features': features})
+                            'features': features,
+                            'movement_context': movement_context(trajectory, group, tickrate, near_shot_s),
+                            'shot_time_profile': shot_time_profile(trajectory, group, tickrate, near_shot_s)})
     return windows, skipped
 
 
@@ -344,10 +359,10 @@ def plot_engagements(player, windows, output, tickrate, limit=10):
 
 
 def analyze_demo(demo, steamid, output, tickrate=64.0, pre_s=0.5, post_s=0.5,
-                 shot_gap_s=0.5, max_plots=10):
+                 shot_gap_s=0.5, max_plots=10, weapon_mode='firearms', near_shot_s=0.1):
     """Run one replay/player analysis and return the exported report."""
     demo, output = Path(demo), Path(output)
-    positive_finite(tickrate=tickrate, shot_gap_s=shot_gap_s)
+    positive_finite(tickrate=tickrate, shot_gap_s=shot_gap_s, near_shot_s=near_shot_s)
     if not all(np.isfinite(v) and v >= 0 for v in (pre_s, post_s)):
         raise ValueError('pre/post seconds must be finite and nonnegative')
     if max_plots < 0:
@@ -355,7 +370,8 @@ def analyze_demo(demo, steamid, output, tickrate=64.0, pre_s=0.5, post_s=0.5,
     frame, events = load_gameplay_demo(demo, steamid)
     player, matched, quality = segment_gameplay(frame, events, steamid, tickrate)
     windows, skipped = extract_engagements(player, matched, tickrate,
-                                           pre_s, post_s, shot_gap_s)
+                                           pre_s, post_s, shot_gap_s, weapon_mode, near_shot_s)
+    matched['selected_weapon_fire'] = selected_fire(matched, weapon_mode)
     output.mkdir(parents=True, exist_ok=True)
     player.to_csv(output / 'telemetry.csv', index=False)
     (output / 'events.json').write_text(matched.to_json(orient='records', indent=2) + '\n')
@@ -368,9 +384,16 @@ def analyze_demo(demo, steamid, output, tickrate=64.0, pre_s=0.5, post_s=0.5,
         'feature_version': FEATURE_VERSION, 'source': str(demo), 'source_sha256': digest.hexdigest(),
         'steamid': steamid, 'assumed_tickrate_hz': tickrate,
         'configuration': {'pre_seconds': pre_s, 'post_seconds': post_s,
-                          'shot_gap_seconds': shot_gap_s, 'max_plots': max_plots},
+                          'shot_gap_seconds': shot_gap_s, 'max_plots': max_plots,
+                          'weapon_mode': weapon_mode, 'near_shot_seconds': near_shot_s},
+        'weapon_filter': {'matched_fire_events': int(matched['event_type'].eq('weapon_fire').sum()),
+                          'selected_fire_events': int(matched['selected_weapon_fire'].sum()),
+                          'excluded_by_weapon': weapon_names(matched.loc[matched['event_type'].eq('weapon_fire') &
+                                                                       ~matched['selected_weapon_fire']]).value_counts().to_dict()},
+        'movement_context_definition': 'Speed intervals classified by ending tick within near_shot_seconds of any grouped shot. Acceleration/jerk require all supporting adjacent speed intervals in the same category. Null indicates no samples.',
         'dependencies': {name: importlib.metadata.version(name) for name in ('demoparser2', 'numpy', 'pandas', 'matplotlib')},
         'note': 'Shot-centered descriptive windows; no visibility checks, cheat classification, or punishment decisions. Padded windows may overlap.',
+        'shot_time_profile_definition': 'Intervals use the signed offset to the nearest grouped shot, with ties assigned to the earlier shot. Pre/on/post categories are disjoint. Direction changes require adjacent near-shot intervals and 0.05-degree axis steps. Turn angles require nonzero adjacent near-shot 2D steps. Rates use near-shot covered time; null indicates no eligible observations.',
         'correction_definition': 'Adjacent yaw/pitch steps with opposite signs, both at least 0.05 degrees; not verified target-relative corrections.',
         'source_event_counts': {name: len(events[name]) for name in ROUND_EVENTS + COMBAT_EVENTS},
         'data_quality': quality, 'engagement_count': len(windows), 'engagements': windows,
@@ -382,20 +405,22 @@ def analyze_demo(demo, steamid, output, tickrate=64.0, pre_s=0.5, post_s=0.5,
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='AimGuard v0.3 shot-centered replay diagnostics')
+    ap = argparse.ArgumentParser(description='AimGuard v0.5 firearm replay diagnostics')
     ap.add_argument('demo', type=Path)
     ap.add_argument('--steamid', required=True)
     ap.add_argument('--tickrate', type=float, default=64.0, help='Explicit timing assumption; verify for the recording')
     ap.add_argument('--pre-seconds', type=float, default=0.5)
     ap.add_argument('--post-seconds', type=float, default=0.5)
     ap.add_argument('--shot-gap-seconds', type=float, default=0.5)
+    ap.add_argument('--weapon-mode', choices=['firearms', 'all'], default='firearms')
+    ap.add_argument('--near-shot-seconds', type=float, default=0.1)
     ap.add_argument('--max-plots', type=int, default=10)
-    ap.add_argument('--output', type=Path, default=Path('outputs/v03'))
+    ap.add_argument('--output', type=Path, default=Path('outputs/v05'))
     args = ap.parse_args(argv)
     try:
         report = analyze_demo(args.demo, args.steamid, args.output, args.tickrate,
                               args.pre_seconds, args.post_seconds, args.shot_gap_seconds,
-                              args.max_plots)
+                              args.max_plots, args.weapon_mode, args.near_shot_seconds)
     except (ValueError, ImportError) as exc:
         ap.error(str(exc))
     quality = report['data_quality']
