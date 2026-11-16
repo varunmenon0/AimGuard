@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import datetime, timezone
 import importlib.metadata
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -59,7 +60,7 @@ def summarize(windows):
     return result
 
 
-def analyze(pool, baseline_directory, output):
+def analyze(pool, baseline_directory, output, case_ids=None):
     from demoparser2 import DemoParser
     pool, baseline_directory, output = map(Path, (pool, baseline_directory, output))
     manifest = json.loads((pool/'manifest.json').read_text()); receipt = json.loads((pool/'pool-receipt.json').read_text())
@@ -72,15 +73,18 @@ def analyze(pool, baseline_directory, output):
         raise ValueError('Inspected pool/baseline receipt mismatch')
     lookup = {case['case_id']:(i, case) for i, case in enumerate(manifest['cases'], 1)}
     predictions = {r['case_id']:r for r in baseline['models']['speed_and_tracking']['predictions']}
-    if not set(SAMPLE).issubset(lookup): raise ValueError('Fixed diagnostic sample missing')
+    sample=list(SAMPLE if case_ids is None else case_ids)
+    if len(set(sample))!=len(sample) or not sample or any(not re.fullmatch(r'[A-Za-z0-9_-]+',value) for value in sample):
+        raise ValueError('Unique safe sample case IDs required')
+    if not set(sample).issubset(lookup): raise ValueError('Diagnostic sample missing')
     output.mkdir(parents=True, exist_ok=False)
-    write_json(output/'protocol.json', dict(role='post_feedback_candidate_diagnostic', sample=SAMPLE, lags_seconds=LAGS,
+    write_json(output/'protocol.json', dict(role='post_feedback_candidate_diagnostic', sample=sample, lags_seconds=LAGS,
         recorded_at_utc=datetime.now(timezone.utc).isoformat(), code_sha256=digest(__file__),
         manifest_sha256=digest(pool/'manifest.json'), baseline_sha256=digest(baseline_directory/'comparison.json'),
         dependencies={name:importlib.metadata.version(name) for name in ('numpy', 'pandas', 'demoparser2')},
-        note='Selected errors plus fixed controls; all windows included. No fit, candidate filtering or classifier revision. Nearest geometry is not intended target/visibility.'))
+        note=('Fixed selected-error/control sample.' if case_ids is None else 'Explicit supplied case list.')+' All windows included. No fit, candidate filtering or classifier revision. Nearest geometry is not intended target/visibility.'))
     cases = []
-    for case_id in SAMPLE:
+    for case_id in sample:
         index, case = lookup[case_id]; prediction = predictions[case_id]
         directory = pool/'analysis'/f'job_{index:04d}'; path = pool/'tracking'/f'case_{index:04d}.json'
         expected = receipt['cases'][index-1]; source = inputs['cases'][index-1]; old = inputs['tracking'][index-1]
@@ -144,7 +148,10 @@ def analyze(pool, baseline_directory, output):
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('pool',type=Path); parser.add_argument('baseline_directory',type=Path); parser.add_argument('--output',required=True,type=Path)
-    args=parser.parse_args(argv); analyze(args.pool,args.baseline_directory,args.output)
+    parser.add_argument('--all-cases',action='store_true',help='Audit every inspected development case, retaining manifest order')
+    args=parser.parse_args(argv)
+    case_ids=[case['case_id'] for case in json.loads((args.pool/'manifest.json').read_text())['cases']] if args.all_cases else None
+    analyze(args.pool,args.baseline_directory,args.output,case_ids)
 
 
 if __name__=='__main__': main()

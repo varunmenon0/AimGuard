@@ -45,3 +45,6 @@ python -m scripts.render_candidate_audit outputs/xguardian/candidate-ambiguity-v
 Choose a new output directory. Each case retains ranked candidates, exact ticks, window associations and comparison availability. The receipt-checked HTML index links per-window tables and existing local trajectory reviews. The renderer does not extract, fit or change decisions. Demos, player identities, snapshots and generated reports remain ignored local files.
 
 Tests cover deterministic ties, alive/team/death filtering, exact-tick requirements, angle wrapping, fixed endpoint identity comparisons, missing-pair denominators, single-opponent gaps, duplicate identities, escaped review fields and tampered receipt rejection. All canonical candidate matches and frozen runtime integrity were independently verified. The conservative cutoff and prior rejected temporal recipes remain inactive; historical evaluation is unchanged.
+
+
+The optional `--all-cases` flag audits every inspected manifest case in manifest order, rather than the fixed selected sample. The explicit case list and selection scope are recorded before extraction. Output case IDs must be unique safe filename identifiers. The encounter-filter experiment requires this complete cohort; the selected 14-case audit cannot be substituted for it.
