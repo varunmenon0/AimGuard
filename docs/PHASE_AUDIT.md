@@ -8,7 +8,7 @@ The new audit checks every original supporting telemetry tick for every engageme
 
 A window passes only when every supporting tick explicitly reports warmup=false and match-started=true. Boundary windows touching warmup are excluded in full; they are not silently trimmed while retaining stale trajectory features. This gate supplements the original round/life/firearm rules and does not claim to resolve every round-event anomaly or every game phase.
 
-The module exposes tested phase helpers and creates a phase-checked development feature path. Existing extractor modules and historical artifacts are preserved for frozen-runtime reproducibility. The legacy gameplay/batch commands are not silently upgraded by this audit; further feature work must explicitly use the phase-checked inputs. A future canonical extractor/version migration must retain this guard and keep old frozen inputs incompatible with a changed protocol. No old model is silently applied to altered inputs.
+The module exposes tested phase helpers and creates a phase-checked development feature path. New v0.6 analyses now use `aimguard.phase_gameplay` / `aimguard.phase_batch`, applying the gate before rebuilding groups and features; see PHASE_GAMEPLAY.md. Existing extractor modules and historical artifacts remain available for frozen-runtime reproducibility. The legacy gameplay/batch commands are not silently upgraded. No old model is silently applied to altered inputs.
 
 ## Results on the inspected pool
 

@@ -1,6 +1,6 @@
-# AimGuard v0.5 — Shot Timing and Direction Analysis
+# AimGuard v0.6 — Phase-Checked Replay Analysis
 
-An offline CS2 replay-analysis and aim-cheat detection research prototype. It segments active rounds and player lives,
+An offline CS2 replay-analysis and aim-cheat detection research prototype. It checks server match-phase flags, segments active rounds and player lives,
 matches player combat events, and describes view-angle movement around shots.
 
 ## Setup
@@ -24,10 +24,10 @@ Find a player's SteamID with the existing diagnostic command:
 python -m aimguard.cs2 data/raw/your-end-vs-damajuana-m1-cache.dem --list-players
 ```
 
-Run the current firearm analysis:
+Run the phase-checked firearm analysis:
 
 ```sh
-python -m aimguard.gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v05/slender
+python -m aimguard.phase_gameplay data/raw/your-end-vs-damajuana-m1-cache.dem --steamid 76561199104430312 --tickrate 64 --output outputs/v06/slender
 ```
 
 Optional settings: `--pre-seconds 0.5`, `--post-seconds 0.5`,
@@ -38,7 +38,7 @@ rates or durations. No additional demo download or classifier training is needed
 Outputs:
 
 - `telemetry.csv`: selected-player samples, including excluded rows, round and
-  segment IDs, active flags, and exclusion reasons. Invalid angles are preserved
+  segment IDs, active flags, exclusion reasons, and recorded phase flags/status. Invalid angles are preserved
   as boundaries rather than removed and joined across. Angles are exported as
   float64 to preserve parser precision for derivative recalculation.
 - `events.json`: selected-player shots, incoming/outgoing damage, and deaths,
@@ -48,13 +48,18 @@ Outputs:
   sample coverage, life-state verification, unusual round events, configuration,
   source SHA-256, feature version, and dependency versions.
 - `engagement_XXXX.png`: close-up yaw, pitch, and speed plots with shot markers;
-  the first ten windows are plotted by default. The report lists generated plots.
+  plots are disabled by default; use `--max-plots 10` to create them. The report lists generated plots.
+- `review.html`: local yaw/pitch/speed review with window and shot controls.
 
 Generated data and outputs are ignored by Git. Use a separate output directory
 for each player or configuration to keep analyses distinct.
 
 ## Segmentation rules
 
+- Recorded samples must explicitly have warmup off and match-started on. Missing or
+  conflicting flags are excluded. Missing required properties fail analysis. The
+  gate runs before shot grouping and feature extraction; phase boundaries split
+  segments and events outside those segments retain ID `-1`.
 - `round_start` closes any preceding active interval and enters freeze time.
   `round_freeze_end` opens active play. `round_end` closes it; its tick is excluded.
   No freeze-end means that round is excluded. Events are not paired by list index.
@@ -138,6 +143,12 @@ weapon-specific recoil compensation, and target acquisition are not implemented.
 
 ## Other entry points
 
+- `python -m aimguard.phase_batch jobs.json --output outputs/v06/batch` analyzes
+  a JSON array of `{demo, steamid, tickrate}` jobs, isolates failures, and writes
+  `summary.json`. Use a new output directory for each run.
+- `aimguard.gameplay` and `aimguard.batch` retain the legacy v0.5 behavior for
+  reproducing old results. They do not apply the new server-phase gate. v0.6
+  reports have a distinct feature version and are rejected by v0.5 frozen models.
 - `python -m aimguard.cs2 DEMO --steamid ID --output outputs/cs2` retains the older
   unfiltered whole-replay diagnostic workflow. Its fixed windows use absolute
   tick bins and one shared preceding sample to retain boundary movement. It
