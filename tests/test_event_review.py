@@ -71,3 +71,25 @@ def test_review_pages_omit_source_label_and_link_exact_window_and_candidate(tmp_
     render(tmp_path,pool)
     assert 'secret_source_label' not in (tmp_path/'event-pages'/'A-tracks.html').read_text()
     assert '#w=0&amp;t=1' in (tmp_path/'event-pages'/'A.html').read_text()
+
+
+def test_browser_reconstruction_is_separate_from_rendered_gameplay_and_activation_labels(tmp_path):
+    row,write_csv=fixture(tmp_path)
+    row.update(review_status='reviewed',review_source='browser_reconstruction',observed_behavior='ordinary_preaim',
+        assistance_assessment='not_assessable',reviewer='Reviewer',evidence_reference='Browser POV screenshot',
+        evidence_note='Player holds an angle; original client visibility is unverified.')
+    path=tmp_path/'browser.csv';write_csv(path,[row])
+    result=validate(tmp_path,path,tmp_path/'browser-observations.json')
+    assert result['reviewed_by_source']=={'browser_reconstruction':1}
+    assert result['rendered_gameplay_reviewed']==0 and result['training_labels_created'] is False
+    assert result['cheat_activation_ground_truth'] is None
+
+
+@pytest.mark.parametrize('assessment',['suspicious','no_clear_evidence'])
+def test_browser_reconstruction_cannot_be_promoted_to_an_assistance_verdict(tmp_path,assessment):
+    row,write_csv=fixture(tmp_path)
+    row.update(review_status='reviewed',review_source='browser_reconstruction',observed_behavior='aim_correction',
+        assistance_assessment=assessment,reviewer='Reviewer',evidence_reference='Browser screenshot',evidence_note='Simplified geometry only.')
+    path=tmp_path/'browser.csv';write_csv(path,[row])
+    with pytest.raises(ValueError,match='assistance verdict'):validate(tmp_path,path,tmp_path/'rejected.json')
+    assert not (tmp_path/'rejected.json').exists()

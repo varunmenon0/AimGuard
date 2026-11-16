@@ -1,6 +1,6 @@
 # Bounded rendered-gameplay comparison pack
 
-The next evidence step requires actual CS2 playback. No CS2 or Steam installation was found in the standard local application/library locations, and the user confirmed no installation is available. No gameplay has been rendered or visually reviewed by this workflow. Further classifier experiments should wait for the comparison review.
+The next evidence step requires actual CS2 playback. No CS2 or Steam installation was found in the standard local application/library locations, and the user confirmed no installation is available. No native gameplay has been rendered or visually reviewed by this workflow. The user-provided browser viewer has since been tested for reconstructed spatial-context review; see BROWSER_REVIEW.md. Its source is tracked separately and does not automatically satisfy native visibility/POV verification. The full ten-event native comparison remains pending.
 
 ## Ten short intervals
 

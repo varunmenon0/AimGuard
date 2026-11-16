@@ -62,14 +62,14 @@ Download/copy `event-review-template.csv` to a new annotations file, preserving 
 | Field | Accepted values or content |
 | --- | --- |
 | review_status | pending, reviewed |
-| review_source | unreviewed, telemetry_only, rendered_gameplay |
+| review_source | unreviewed, telemetry_only, browser_reconstruction, rendered_gameplay |
 | observed_behavior | unreviewed, ordinary_preaim, aim_correction, tracking, unclear |
 | assistance_assessment | unreviewed, not_assessable, no_clear_evidence, suspicious |
 | evidence_reference | Specific demo/tick, screenshot or clip reference |
 | evidence_note | Explanation of the observation and its limits |
 | reviewer | Reviewer identity |
 
-Reviewed rows require a source, behavior, assessment, reviewer, evidence reference and note. Pending rows must retain unreviewed categorical values. Use not_assessable/unclear when evidence is inadequate; suspicious does not mean confirmed cheat activation. Review source/evidence are reviewer attestations, not independently verified facts.
+Reviewed rows require a source, behavior, assessment, reviewer, evidence reference and note. Browser reconstruction rows must use not_assessable for assistance; source-specific counts distinguish them from rendered gameplay. Pending rows must retain unreviewed categorical values. Use not_assessable/unclear when evidence is inadequate; suspicious does not mean confirmed cheat activation. Review source/evidence are reviewer attestations, not independently verified facts.
 
 ```sh
 python -m aimguard.event_review validate \

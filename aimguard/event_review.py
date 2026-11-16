@@ -1,5 +1,6 @@
 """Local event bookmarks and provenance-checked human observations, never auto-labels."""
 import argparse
+from collections import Counter
 import csv
 import html
 import json
@@ -8,7 +9,7 @@ from pathlib import Path
 from aimguard.baseline import digest, write_json
 
 EDITABLE = {'review_status','review_source','observed_behavior','assistance_assessment','evidence_reference','evidence_note','reviewer'}
-SOURCES = {'unreviewed','telemetry_only','rendered_gameplay'}
+SOURCES = {'unreviewed','telemetry_only','browser_reconstruction','rendered_gameplay'}
 BEHAVIORS = {'unreviewed','ordinary_preaim','aim_correction','tracking','unclear'}
 ASSESSMENTS = {'unreviewed','not_assessable','no_clear_evidence','suspicious'}
 
@@ -48,8 +49,12 @@ def validate(directory,annotations,output):
         if (row['review_source']=='unreviewed' or row['observed_behavior']=='unreviewed' or row['assistance_assessment']=='unreviewed'
             or any(not row[k].strip() for k in ('reviewer','evidence_reference','evidence_note'))):
             raise ValueError('Reviewed observations require source, behavior, assessment, reviewer and evidence')
+        if row['review_source']=='browser_reconstruction' and row['assistance_assessment']!='not_assessable':
+            raise ValueError('Browser reconstruction observations cannot establish an assistance verdict')
         reviewed.append(row)
     result=dict(role='human_behavior_observations',reviewed=len(reviewed),pending=pending,observations=reviewed,
+        reviewed_by_source=dict(Counter(row['review_source'] for row in reviewed)),
+        rendered_gameplay_reviewed=sum(row['review_source']=='rendered_gameplay' for row in reviewed),
         queue_sha256=digest(directory/'review-queue.json'),annotations_sha256=digest(annotations),
         training_labels_created=False,cheat_activation_ground_truth=None,
         note='Review source and evidence are reviewer attestations, not independently verified ground truth. Suspicious observations are not confirmed cheat activation labels.')
