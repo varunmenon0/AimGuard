@@ -59,3 +59,11 @@ reserved but not yet scored. The acquisition plan records those receipt hashes.
 This avoids rediscovering a consumed cohort while keeping the frozen model
 immutable. The first recorded cohort used acquisition commit `54d3068`; this
 registry exclusion was added afterward and does not alter its selection/results.
+
+## Cache-only development controls
+
+Use `--purpose development --cached-only --cheating 0 --legitimate 16` with a new output directory to select legitimate development controls from bytes already cached. One label quota may be zero, but their total must be positive. Cached-only mode caps the reader at the existing cache length and makes no download request. An incomplete final archive member is not counted. Record the actual selected count rather than substituting cases based on scores.
+
+Development acquisition writes `development_candidates`, not evaluation candidates. Before feature extraction, validate source hashes and full replay participant identities against existing development/reservation exclusions. Register these participants for future exclusion with purpose `development_only_participant_exclusion_not_evaluation`; this receipt does not authorize an evaluation or claim a fresh holdout. After extraction, explicitly mark the development manifest as inspected. Raw demos, metadata, receipts and extracted artifacts remain ignored local files.
+
+The first cache-only development run requested 16 legitimate cases and recovered 14 complete cases before the cached prefix ended. No additional bytes were downloaded.

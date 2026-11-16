@@ -128,17 +128,18 @@ class PrefixSource:
         if self.previous:self.previous.close()
 
 
-def acquire(model_directory,label_tables,cache,prefetch,output,cheating=8,legitimate=16,limit_gib=16):
+def acquire(model_directory,label_tables,cache,prefetch,output,cheating=8,legitimate=16,limit_gib=16,purpose="evaluation",cached_only=False):
     bundle=load_model(model_directory)
     output=Path(output);output.mkdir(parents=True,exist_ok=False)
     labels=metadata_labels(label_tables)
     blocked,blocked_matches,registry_receipts=recorded_exclusions(bundle,model_directory)
     encoded_blocked={float(int(value)) for value in blocked}
     quotas={'1':cheating,'0':legitimate};counts={'1':0,'0':0}
-    if min(quotas.values())<1:raise ValueError('Both label quotas must be positive')
+    if min(quotas.values())<0 or sum(quotas.values())<1:raise ValueError('At least one positive label quota required')
+    if purpose not in ('evaluation','development'):raise ValueError('Unknown acquisition purpose')
     plan=dict(recorded_at_utc=datetime.now(timezone.utc).isoformat(),role='metadata_only_acquisition',
         source_url=URL,model_sha256=digest(Path(model_directory)/'model.json'),quotas=quotas,
-        compressed_cache_limit_bytes=int(limit_gib*1024**3),initial_cache_bytes=Path(cache).stat().st_size,
+        purpose=purpose,cached_only=cached_only,compressed_cache_limit_bytes=Path(cache).stat().st_size if cached_only else int(limit_gib*1024**3),initial_cache_bytes=Path(cache).stat().st_size,
         label_sources={str(Path(p).resolve()):digest(p) for p in label_tables},
         prior_reservation_receipt_sha256=registry_receipts,excluded_participant_count=len(blocked),
         selection='Archive order; one target/match. Cheating label has priority until its quota is filled. Within label, SHA-256(match+source token) order. Reject inspected/shared participants and nonunique rounded-ID mapping. No features/predictions used.',
@@ -196,7 +197,7 @@ def acquire(model_directory,label_tables,cache,prefetch,output,cheating=8,legiti
         status='bounded_prefix_exhausted_or_transfer_error';print(f'{type(exc).__name__}: {exc}',flush=True)
     finally:
         source.close();receipt()
-    write_json(output/'candidates.json',dict(role='evaluation_candidates',features_inspected=False,
+    write_json(output/'candidates.json',dict(role='development_candidates' if purpose=='development' else 'evaluation_candidates',features_inspected=False,
         selection=plan['selection'],acquisition_status=status,cases=chosen,
         caveats=['Archive-order convenience sample, not representative population sampling',
                  'Source labels are rounded and match-level; no aimbot activation annotation',
@@ -211,8 +212,9 @@ def main(argv=None):
     parser.add_argument('--cache',type=Path,required=True);parser.add_argument('--prefetch',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True);parser.add_argument('--cheating',type=int,default=8)
     parser.add_argument('--legitimate',type=int,default=16);parser.add_argument('--limit-gib',type=float,default=16)
+    parser.add_argument('--purpose',choices=['evaluation','development'],default='evaluation');parser.add_argument('--cached-only',action='store_true')
     args=parser.parse_args(argv)
-    acquire(args.model_directory,args.label_table,args.cache,args.prefetch,args.output,args.cheating,args.legitimate,args.limit_gib)
+    acquire(args.model_directory,args.label_table,args.cache,args.prefetch,args.output,args.cheating,args.legitimate,args.limit_gib,args.purpose,args.cached_only)
 
 
 if __name__=='__main__':main()

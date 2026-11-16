@@ -77,3 +77,7 @@ This comparison is development feedback after inspecting the failed evaluation.
 It is not a new held-out result and does not supersede the original 11/16 false
 flags. No new full-pool model is frozen or selected automatically. Better
 development counts require confirmation on another genuinely fresh cohort.
+
+## Additional inspected development cohorts
+
+`python -m scripts.prepare_expanded_development` accepts `--additional-manifest`, `--additional-analysis` and `--additional-tracking` together. The manifest must explicitly identify inspected development data with participant identities and labels. Demo/report/telemetry/event hashes and tracking identities are checked before staging links. Duplicate case, match, selected-player or demo identities are rejected; connected participant groups are recomputed over the combined pool. Extension source hashes are retained in the pool receipt. These cases do not become a new holdout.

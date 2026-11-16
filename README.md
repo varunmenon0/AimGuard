@@ -1,6 +1,6 @@
 # AimGuard v0.5 — Shot Timing and Direction Analysis
 
-An offline CS2 telemetry prototype. It segments active rounds and player lives,
+An offline CS2 replay-analysis and aim-cheat detection research prototype. It segments active rounds and player lives,
 matches player combat events, and describes view-angle movement around shots.
 
 ## Setup

@@ -712,3 +712,24 @@ rejection, HTML escaping, checksum validation and pending-review semantics.
 All 194 automated tests pass. Six case receipts, plan/source hashes, 36 pending
 bookmarks and frozen runtime integrity were independently verified. Details are
 in docs/MEASUREMENT_AUDIT.md; all observations and identities remain local.
+
+
+## Offline context experiment and expanded legitimate controls
+
+Scope remains offline demo detection; live integration is not a development milestone.
+A fixed weapon-family/grouped-shot normalization experiment was recorded before fitting on the 41 inspected development cases. References use legitimate training cases only, equal case weights and fixed sparse fallbacks; scaling and C=1 balanced logistic regression are fitted within each participant-group fold. The same joint-window/log-aggregation control gave TP13/FN3/FP3/TN22; context centering gave TP11/FN5/FP5/TN20, with no abstentions. This negative experiment is not adopted or frozen. See docs/WEAPON_CONTEXT.md.
+
+Cache-only acquisition then selected 14 additional legitimate matches, short of the requested 16 because the existing compressed prefix ended. All selected nested ZIPs passed CRC checks, demo/source hashes and full participant exclusions. No additional bytes were downloaded. All 14 extractions completed with round-event warnings and no structural violations. These cases are explicitly inspected development data and registered for participant exclusion from future acquisition/evaluation, not a new holdout.
+
+The combined pool contains 55 cases (16 cheating, 39 legitimate) in 53 connected participant components. Repeating the four existing recipes with group-held-out training and no threshold search produced:
+
+| Recipe | TP | FN | FP | TN | Abstentions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Speed/acceleration | 10 | 6 | 14 | 25 | 0 |
+| Timing/direction | 10 | 6 | 8 | 31 | 0 |
+| Pre-shot tracking | 13 | 3 | 6 | 33 | 0 |
+| Speed + tracking | 13 | 3 | 5 | 34 | 0 |
+
+These are post-feedback development diagnostics, not fresh performance estimates. False flags remain too frequent for the intended goal. The previous independent frozen result (TP8/FN0/FP11/TN5) remains unchanged. Frozen model and runtime hashes were rechecked; cached archive length is unchanged. All demos, identities, models, receipts and generated reports remain local and ignored by Git.
+
+All 204 tests pass, including fold-local context references, cache-only zero-download behavior, single-label development acquisition and extension manifest guards. Local reports are in outputs/xguardian/weapon-context-v1 and outputs/xguardian/development-v4-models.

@@ -52,3 +52,38 @@ def test_acquisition_rejects_registry_for_a_different_model(tmp_path):
     (tmp_path/'reservations'/'bad.reservation.json').write_text(json.dumps(dict(model_sha256='wrong',cases=[])))
     with pytest.raises(ValueError,match='registry model mismatch'):
         recorded_exclusions(dict(excluded_participants=[],development=[]),tmp_path)
+
+
+def test_cached_prefix_source_never_downloads_when_limit_equals_existing_bytes(tmp_path,monkeypatch):
+    from scripts.acquire_fresh_cases import PrefixSource
+    cache=tmp_path/'cache.zst';cache.write_bytes(b'abc')
+    monkeypatch.setattr(PrefixSource,'download',lambda *args:pytest.fail('Cached-only source must not download'))
+    source=PrefixSource(cache,tmp_path/'prefetch',3)
+    try:
+        assert source.read(2)==b'ab' and source.read(2)==b'c' and source.read(2)==b''
+    finally:source.close()
+    assert cache.read_bytes()==b'abc'
+
+
+def test_cached_development_acquisition_accepts_legitimate_only_quota(tmp_path,monkeypatch):
+    import io,json,tarfile
+    from zipfile import ZipFile
+    import zstandard
+    import scripts.acquire_fresh_cases as module
+    model=tmp_path/'model';model.mkdir();(model/'model.json').write_text('fixture')
+    labels=tmp_path/'labels.csv';labels.write_text('steamid,match_id,isCheater\n2,fresh,0\n')
+    nested=io.BytesIO()
+    with ZipFile(nested,'w') as archive:archive.writestr('fresh.dem',b'fixture replay')
+    raw=io.BytesIO()
+    with tarfile.open(fileobj=raw,mode='w') as archive:
+        member=tarfile.TarInfo('root/fresh_de_map.zip');member.size=len(nested.getvalue());archive.addfile(member,io.BytesIO(nested.getvalue()))
+    cache=tmp_path/'cache.zst';cache.write_bytes(zstandard.ZstdCompressor().compress(raw.getvalue()));before=cache.read_bytes()
+    monkeypatch.setattr(module,'load_model',lambda _:dict(excluded_participants=['99'],development=[]))
+    monkeypatch.setattr(module,'participant_ids',lambda _:['2','3'])
+    monkeypatch.setattr(module.PrefixSource,'download',lambda *args:pytest.fail('No network allowed'))
+    output=tmp_path/'cohort'
+    assert module.acquire(model,[labels],cache,tmp_path/'prefetch',output,0,1,16,'development',True)=={'1':0,'0':1}
+    manifest=json.loads((output/'candidates.json').read_text())
+    assert manifest['role']=='development_candidates' and manifest['features_inspected'] is False
+    assert manifest['cases'][0]['label']=='legitimate'
+    assert json.loads((output/'plan.json').read_text())['cached_only'] and cache.read_bytes()==before

@@ -8,7 +8,7 @@ from aimguard.development_models import participant_groups
 from aimguard.tracking_baseline import load_model
 
 
-def prepare(model_directory,manifest_path,analysis_root,tracking_root,reserved_path,evaluation_root,output):
+def prepare(model_directory,manifest_path,analysis_root,tracking_root,reserved_path,evaluation_root,output,additional_manifest=None,additional_analysis=None,additional_tracking=None):
     model_directory,manifest_path,analysis_root,tracking_root,reserved_path,evaluation_root=map(Path,
         (model_directory,manifest_path,analysis_root,tracking_root,reserved_path,evaluation_root))
     bundle=load_model(model_directory);manifest=json.loads(manifest_path.read_text())
@@ -37,6 +37,27 @@ def prepare(model_directory,manifest_path,analysis_root,tracking_root,reserved_p
             raise ValueError('Consumed evaluation checksum mismatch')
         cases.append(dict(case,role='development',features_inspected=True,origin='consumed frozen tracking evaluation'))
         sources.append((directory,tracking));participants.append(set(case['participants']))
+    extra=(additional_manifest,additional_analysis,additional_tracking)
+    if any(value is not None for value in extra) and not all(value is not None for value in extra):
+        raise ValueError('Additional development sources require manifest, analysis and tracking together')
+    extra_receipt=None
+    if additional_manifest is not None:
+        additional_manifest,additional_analysis,additional_tracking=map(Path,extra)
+        extension=json.loads(additional_manifest.read_text())
+        if extension.get('role')!='development' or extension.get('features_inspected') is not True:
+            raise ValueError('Additional cases must be explicitly inspected development data')
+        for index,case in enumerate(extension['cases'],1):
+            if case['label'] not in ('cheating','legitimate') or not case.get('participants'):
+                raise ValueError('Additional cases need valid labels and recorded participants')
+            directory=additional_analysis/f'job_{index:04d}';tracking=additional_tracking/f'case_{index:04d}.json'
+            record=json.loads(tracking.read_text())
+            if record['demo_sha256']!=case['demo_sha256'] or digest(case['demo'])!=case['demo_sha256']:
+                raise ValueError('Additional development demo checksum mismatch')
+            for name in ('report.json','telemetry.csv','events.json'):
+                if digest(directory/name)!=record['input_sha256'][name]:raise ValueError('Additional development input checksum mismatch')
+            cases.append(dict(case,role='development',features_inspected=True,origin='additional inspected development cohort'))
+            sources.append((directory,tracking));participants.append(set(case['participants']))
+        extra_receipt=dict(manifest_sha256=digest(additional_manifest),cases=len(extension['cases']))
     for key in ('case_id','steamid','match_id','demo_sha256'):
         if len({case[key] for case in cases})!=len(cases):raise ValueError(f'Duplicate development {key}')
     for case,(directory,tracking) in zip(cases,sources):
@@ -57,7 +78,7 @@ def prepare(model_directory,manifest_path,analysis_root,tracking_root,reserved_p
         receipts.append(dict(case_id=case['case_id'],report_sha256=digest(directory/'report.json'),tracking_sha256=digest(tracking)))
     write_json(output/'tracking'/'summary.json',dict(role='development_tracking_diagnostic',cases=summaries,
         manifest_sha256=digest(output/'manifest.json'),note='Existing canonical extraction reused by verified local links; no labels or source artifacts changed.'))
-    write_json(output/'pool-receipt.json',dict(cases=receipts,groups={str(group):[case['case_id'] for case,g in zip(cases,groups) if g==group] for group in sorted(set(groups))},
+    write_json(output/'pool-receipt.json',dict(cases=receipts,additional_development=extra_receipt,groups={str(group):[case['case_id'] for case,g in zip(cases,groups) if g==group] for group in sorted(set(groups))},
         code_sha256=digest(__file__),manifest_sha256=digest(output/'manifest.json'),features_inspected=True,fresh_holdout=False))
     print(f'{len(cases)} inspected cases in {len(set(groups))} participant components; development only',flush=True)
     return len(cases),len(set(groups))
@@ -66,8 +87,9 @@ def prepare(model_directory,manifest_path,analysis_root,tracking_root,reserved_p
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('model_directory','manifest_path','analysis_root','tracking_root','reserved_path','evaluation_root'):parser.add_argument(name,type=Path)
-    parser.add_argument('--output',required=True,type=Path);args=parser.parse_args(argv)
-    prepare(args.model_directory,args.manifest_path,args.analysis_root,args.tracking_root,args.reserved_path,args.evaluation_root,args.output)
+    parser.add_argument('--output',required=True,type=Path)
+    parser.add_argument('--additional-manifest',type=Path);parser.add_argument('--additional-analysis',type=Path);parser.add_argument('--additional-tracking',type=Path);args=parser.parse_args(argv)
+    prepare(args.model_directory,args.manifest_path,args.analysis_root,args.tracking_root,args.reserved_path,args.evaluation_root,args.output,args.additional_manifest,args.additional_analysis,args.additional_tracking)
 
 
 if __name__=='__main__':main()

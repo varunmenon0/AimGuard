@@ -49,3 +49,14 @@ def test_pool_rejects_changed_source_checksums_before_writing(tmp_path,monkeypat
     (args[2]/'job_0001'/'report.json').write_text('{}')
     with pytest.raises(ValueError,match='checksum mismatch'):module.prepare(*args,output)
     assert not output.exists()
+
+
+def test_additional_sources_cannot_be_partial_or_claim_uninspected_data(tmp_path,monkeypatch):
+    args=sources(tmp_path,monkeypatch);output=tmp_path/'pool'
+    with pytest.raises(ValueError,match='manifest, analysis and tracking together'):
+        module.prepare(*args,output,additional_manifest=tmp_path/'extra.json')
+    assert not output.exists()
+    extra=tmp_path/'extra.json';extra.write_text(json.dumps(dict(role='development_candidates',features_inspected=False,cases=[])))
+    with pytest.raises(ValueError,match='explicitly inspected development'):
+        module.prepare(*args,output,extra,tmp_path,tmp_path)
+    assert not output.exists()
