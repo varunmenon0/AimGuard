@@ -89,7 +89,7 @@ class PrefixSource:
         path=self.prefetch/f'{start}-{end}.chunk'
         if path.exists() and path.stat().st_size==end-start:return path
         partial=path.with_suffix('.partial');headers=path.with_suffix('.headers')
-        command=['curl','--silent','--show-error','--fail','--location','--retry','4','--retry-delay','2',
+        command=['curl','--silent','--show-error','--fail','--location','--retry','4','--retry-all-errors','--retry-delay','2',
             '--connect-timeout','30','--max-time','240','--max-filesize',str(end-start),'--range',f'{start}-{end-1}',
             '--dump-header',str(headers),'--output',str(partial),URL]
         process=subprocess.Popen(command,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)

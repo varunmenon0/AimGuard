@@ -87,3 +87,23 @@ def test_cached_development_acquisition_accepts_legitimate_only_quota(tmp_path,m
     assert manifest['role']=='development_candidates' and manifest['features_inspected'] is False
     assert manifest['cases'][0]['label']=='legitimate'
     assert json.loads((output/'plan.json').read_text())['cached_only'] and cache.read_bytes()==before
+
+
+def test_range_download_retries_interrupted_transfers_and_validates_response(tmp_path,monkeypatch):
+    import threading
+    import scripts.acquire_fresh_cases as module
+    source=object.__new__(module.PrefixSource)
+    source.prefetch=tmp_path;source.processes=set();source.lock=threading.Lock();source.stopping=False
+    commands=[]
+    class Process:
+        returncode=0
+        def __init__(self,command,**kwargs):
+            commands.append(command)
+            Path(command[command.index('--output')+1]).write_bytes(b'abc')
+            Path(command[command.index('--dump-header')+1]).write_text('HTTP/2 206\nContent-Range: bytes 0-2/10\n\n')
+        def communicate(self):return b'',b''
+    from pathlib import Path
+    monkeypatch.setattr(module.subprocess,'Popen',Process)
+    result=source.download(0,3)
+    assert result.read_bytes()==b'abc' and '--retry-all-errors' in commands[0]
+    assert commands[0][commands[0].index('--range')+1]=='0-2'

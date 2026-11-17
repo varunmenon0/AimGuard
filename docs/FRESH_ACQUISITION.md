@@ -67,3 +67,7 @@ Use `--purpose development --cached-only --cheating 0 --legitimate 16` with a ne
 Development acquisition writes `development_candidates`, not evaluation candidates. Before feature extraction, validate source hashes and full replay participant identities against existing development/reservation exclusions. Register these participants for future exclusion with purpose `development_only_participant_exclusion_not_evaluation`; this receipt does not authorize an evaluation or claim a fresh holdout. After extraction, explicitly mark the development manifest as inspected. Raw demos, metadata, receipts and extracted artifacts remain ignored local files.
 
 The first cache-only development run requested 16 legitimate cases and recovered 14 complete cases before the cached prefix ended. No additional bytes were downloaded.
+
+## Later phase-clean expansion
+
+See [DATA_EXPANSION.md](DATA_EXPANSION.md) for the metadata-first split and phase-clean development extension. The bounded attempt recovered fourteen additional participant-disjoint matches before transfer timeouts: eight entered development and six legitimate controls remain unextracted/unscored. The original acquisition target was not reached. The six controls are not a complete cheating-detection evaluation set.
