@@ -64,3 +64,8 @@ Local `inventory.json` and `report.md` contain every path, hash, status and
 overlap. `availability-notes.json` records supplementary ZIP/source-table checks
 and the short-ID diagnostic. All data and generated artifacts remain local and
 ignored; the frozen model and six-control evaluation are unchanged.
+
+The subsequent [identity audit](IDENTITY_AUDIT.md) verifies the seven short-only
+exclusions and selects six legitimate and one cheating source-labeled target
+across seven disjoint matches. These remain unscored candidates pending a
+separately bound evaluation protocol; the strict inventory above is historical.
