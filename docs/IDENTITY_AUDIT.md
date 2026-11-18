@@ -78,3 +78,8 @@ positive rate. The lone positive has no verified active-aimbot annotation.
 Use these cases as a small additional independent check; further labeled data
 will still be needed. Raw demos, candidate manifests and generated receipts
 stay local and ignored.
+
+The metadata-stage statements above are historical. The seven selected cases
+have since been reserved and consumed by the separate
+[supplemental evaluation](SUPPLEMENTAL_EVALUATION.md). They are no longer fresh
+or unscored; their original audit metadata remains immutable.
