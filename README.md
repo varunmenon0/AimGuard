@@ -16,6 +16,27 @@ python -m pytest -q
 
 On macOS/Linux, use `python3 -m venv .venv` and `source .venv/bin/activate`.
 
+## Score a player with a frozen model
+
+With the locally frozen v0.6 model available, score one player from a 64 Hz demo:
+
+```sh
+python -m aimguard.offline_detector score outputs/xguardian/offline-v06/frozen path/to/match.dem --steamid 76561199104430312 --output outputs/player-review
+```
+
+Open `outputs/player-review/result.html` for the decision, review-priority score,
+coverage and trajectory-evidence link. `prediction.json` includes the four feature
+values, their model contributions, warnings and source/model checksums.
+
+Decisions are `flag_for_review`, `not_flagged`, or `insufficient_evidence`.
+The score is uncalibrated; a flag requests review and a non-flag does not certify
+legitimate play. Insufficient evidence is unresolved. Use a new output directory.
+
+Model/data artifacts remain local and are not bundled in Git. The model checks
+its feature recipe, Python/dependency versions and source hashes before scoring.
+See [the offline workflow](docs/OFFLINE_DETECTOR.md) for model preparation and
+single-use evaluation commands. Descriptive analysis below works without a model.
+
 ## Analyze the existing Cache replay
 
 Find a player's SteamID with the existing diagnostic command:
