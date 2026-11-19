@@ -1,7 +1,40 @@
-# AimGuard v0.6 — Phase-Checked Replay Analysis
+# AimGuard
 
 An offline CS2 replay-analysis and aim-cheat detection research prototype. It checks server match-phase flags, segments active rounds and player lives,
 matches player combat events, and describes view-angle movement around shots.
+The local replay workspace lets you select a player, run the frozen v0.6 detector,
+inspect aim trajectories and score contributions, and export the evidence.
+
+## Open the local interface
+
+On this Mac, double-click **`Launch AimGuard.command`** in the repository folder.
+It opens the app in your browser at **http://127.0.0.1:8765**. Keep the launch
+window open; press **Ctrl+C** there to stop the app.
+
+1. Choose a replay from the library, or click **Add replay** to import a `.dem`
+   file or use its existing local path.
+2. Select a player and click **Analyze player**. The app reads the recording,
+   builds combat windows, tracks opponent geometry and computes a review score.
+3. Inspect the result and switch between view angles, angular speed, alignment
+   and tracking. Select another combat window or hover over a curve for values.
+4. Use **Analysis history** to reopen a review, **Open full evidence report** for
+   the detailed report, or **Export evidence** for a portable ZIP.
+
+The app and all replay processing run on this computer. Saved analyses appear
+automatically. The interface uses a separate `.ui-venv` and leaves the original
+detector environment intact. The first launch installs interface dependencies;
+later launches need no internet connection. Node.js is only needed to change the
+interface source, not to run the included built interface.
+
+From a terminal in the repository, the equivalent command is:
+
+```sh
+.venv/bin/python scripts/launch_ui.py
+```
+
+The local frozen model and original detector environment must already be present
+to run analyses. See [the interface guide](docs/LOCAL_INTERFACE.md) for storage,
+troubleshooting, development and test commands.
 
 ## Setup
 

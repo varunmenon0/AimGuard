@@ -1,5 +1,7 @@
 # Python environments
 .venv/
+.ui-venv/
+ui/node_modules/
 venv/
 __pycache__/
 *.py[cod]
