@@ -5,9 +5,65 @@ matches player combat events, and describes view-angle movement around shots.
 The local replay workspace lets you select a player, run the frozen v0.6 detector,
 inspect aim trajectories and score contributions, and export the evidence.
 
+## Install and run
+
+The **trained model and built interface are included**. Bring your own 64 Hz
+CS2 `.dem` recording; no CS2 installation, training step or Node.js is needed.
+
+```sh
+git clone https://github.com/varunmenon0/AimGuard.git
+cd AimGuard
+```
+
+Use **Python 3.12.10 exactly**. With [uv](https://docs.astral.sh/uv/getting-started/installation/):
+
+```sh
+uv run --python 3.12.10 --no-project scripts/setup_local.py
+.venv/bin/python scripts/launch_ui.py
+```
+
+Or run `python3.12 scripts/setup_local.py` using an installed Python 3.12.10.
+On Windows, use `py -3.12 scripts/setup_local.py`, then
+`.\.venv\Scripts\python.exe scripts\launch_ui.py`.
+On macOS, you can double-click **Launch AimGuard.command** after setup.
+
+Setup installs pinned detection dependencies, prepares the separate interface
+environment, and verifies the bundled model. New installations start with an
+empty replay library and history. See [full installation instructions](docs/INSTALL.md)
+and [the included model card](artifacts/aimguard-v0.6/MODEL_CARD.md).
+
+## Interface demo
+
+Four screenshots from the running local interface. This curated workspace uses
+real saved analyses; display names and filenames are pseudonymized and Steam
+identities are hidden. Scores, decisions and curves are unchanged. The recordings
+and saved reports shown here are not included in a clone.
+
+**1. Replay workspace.** Choose a local recording and select a player.
+
+![AimGuard replay workspace with a replay library and player selection](docs/images/01-workspace.png)
+
+**2. Saved review history.** Reopen completed analyses, including both review
+flags and results below the review threshold. A non-flag is not a certification
+of legitimate play.
+
+![Saved analysis history showing review flags and no-review-flag results](docs/images/02-history.png)
+
+**3. Legitimate-labeled example.** Player 01 scores **37.7/100**, below the fixed
+75 threshold. The review includes 83 live combat windows and interactive curves.
+This is an existing development example, not an additional test case.
+
+![Analysis of a legitimate-labeled player with no review flag](docs/images/03-legitimate-review.png)
+
+**4. Cheating-labeled example.** Player 02 scores **98.6/100** and is flagged for
+review. The source dataset supplies a generic cheating label; it does not confirm
+that an aimbot was active in the displayed window.
+
+![Analysis of a cheating-labeled player with a review recommended result](docs/images/04-cheating-review.png)
+
 ## Open the local interface
 
-On this Mac, double-click **`Launch AimGuard.command`** in the repository folder.
+After setup on macOS, double-click **`Launch AimGuard.command`** in the repository folder.
 It opens the app in your browser at **http://127.0.0.1:8765**. Keep the launch
 window open; press **Ctrl+C** there to stop the app.
 
@@ -32,13 +88,15 @@ From a terminal in the repository, the equivalent command is:
 .venv/bin/python scripts/launch_ui.py
 ```
 
-The local frozen model and original detector environment must already be present
-to run analyses. See [the interface guide](docs/LOCAL_INTERFACE.md) for storage,
+The packaged model is selected automatically in a fresh clone. See
+[the interface guide](docs/LOCAL_INTERFACE.md) for storage,
 troubleshooting, development and test commands.
 
-## Setup
+## Research and development setup
 
-Use Python 3.12. From this repository:
+The broad requirements below are for research and tests. For the delivered app,
+use the pinned installer above. Keep the frozen inference environment separate.
+Use Python 3.12. From a separate research checkout:
 
 ```powershell
 py -3 -m venv .venv
@@ -51,10 +109,10 @@ On macOS/Linux, use `python3 -m venv .venv` and `source .venv/bin/activate`.
 
 ## Score a player with a frozen model
 
-With the locally frozen v0.6 model available, score one player from a 64 Hz demo:
+With the installed runtime, score one player from a 64 Hz demo:
 
 ```sh
-python -m aimguard.offline_detector score outputs/xguardian/offline-v06/frozen path/to/match.dem --steamid 76561199104430312 --output outputs/player-review
+.venv/bin/python -m aimguard.offline_detector score artifacts/aimguard-v0.6 path/to/match.dem --steamid EXACT_STEAMID --output outputs/player-review
 ```
 
 Open `outputs/player-review/result.html` for the decision, review-priority score,
@@ -65,12 +123,16 @@ Decisions are `flag_for_review`, `not_flagged`, or `insufficient_evidence`.
 The score is uncalibrated; a flag requests review and a non-flag does not certify
 legitimate play. Insufficient evidence is unresolved. Use a new output directory.
 
-Model/data artifacts remain local and are not bundled in Git. The model checks
+The compact inference model is bundled in Git. Replays, saved analyses and the
+original research artifacts remain local. The model checks
 its feature recipe, Python/dependency versions and source hashes before scoring.
-See [the offline workflow](docs/OFFLINE_DETECTOR.md) for model preparation and
+See [the offline workflow](docs/OFFLINE_DETECTOR.md) for research model preparation and
 single-use evaluation commands. Descriptive analysis below works without a model.
 
-## Analyze the existing Cache replay
+## Descriptive replay analysis
+
+Replace the example path below with a recording on your computer. Replay files
+are not bundled with the repository.
 
 Find a player's SteamID with the existing diagnostic command:
 
