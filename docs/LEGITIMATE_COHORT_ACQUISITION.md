@@ -116,9 +116,10 @@ analysis report references, exclusion registration and both frozen runtimes.
 The complete local report and verification are in
 `outputs/xguardian/legitimate-cohort-50-v1`.
 
-**This collection has not been scored and is not yet reserved for evaluation.**
-No model, cutoff, training feature or historical evaluation was changed. The
-next step is a separately bound single-use group-aware evaluation, reporting
-both player flags and match groups, with errors/insufficient evidence explicit.
-The group count and convenience sampling must remain visible in any performance
-claim; fifty players are not fifty independent matches.
+At acquisition time this collection was unscored and unreserved. It has since
+been consumed by the [mixed grouped evaluation](MIXED_GROUPED_EVALUATION.md),
+with the original controls unchanged. Historical source metadata remain
+immutable; evaluation-usage.json supersedes their uninspected declarations.
+No model, cutoff or training feature was changed. The group count and
+convenience sampling remain visible in performance reporting; fifty players
+are not fifty independent matches.
