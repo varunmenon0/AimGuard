@@ -150,3 +150,9 @@ ordering, and acquisition exclusions. A renamed reservation repeat was blocked
 before creating an output or extracting features. Both frozen runtimes remain
 intact. Local results, per-case HTML evidence and verification are under
 `outputs/xguardian/mixed-grouped-v1/evaluation`.
+
+The subsequent [final bounded error audit](FINAL_ERROR_AUDIT.md) reproduced
+both error cases and tested one development-only smoothing candidate. It
+increased development false flags without improving detections and was
+rejected. The original model, cutoff and recorded evaluation remain unchanged;
+that requested tuning pass is closed.
