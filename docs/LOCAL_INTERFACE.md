@@ -28,6 +28,9 @@ print the address without opening a tab.
 The first launch installs the interface requirements into `.ui-venv`. It does
 not install anything into the detector's `.venv`. Subsequent use is offline.
 The checked-in `ui/dist` bundle means Node.js is not needed for normal use.
+For a fresh clone, first follow [installation](INSTALL.md). The compact trained
+model is included at `artifacts/aimguard-v0.6`; personal replays and reports are
+not included.
 
 The launcher is tested on this Mac. A terminal launch on Windows uses
 `.venv\Scripts\python.exe scripts\launch_ui.py`; the Windows flow has not been
@@ -85,7 +88,9 @@ Generated interface state stays under `outputs/local-ui/`:
 | `runs/<id>/` | Individual run outputs and worker logs |
 | `exports/` | Evidence ZIP files |
 
-These files, demos, models, environments and dependencies remain ignored by Git.
+These generated files, demos, original research models, environments and
+dependencies remain ignored by Git. The small inference-only model is the
+explicit exception and is tracked under `artifacts/`.
 The app does not modify original recordings. Replacing a recording invalidates
 its cached roster. If the application stops mid-analysis, the job is marked
 interrupted at the next launch; start a new review to retry it. **Cancel analysis**
@@ -96,9 +101,10 @@ stops the active worker or removes a waiting job from execution.
 - **Disconnected:** keep the launch window open and reload the displayed local
   address. If the server restarted, reloading obtains a new local session.
 - **Engine needs attention:** open **Settings** for the precise model/load error.
-  The original `.venv` and `outputs/xguardian/offline-v06/frozen` are required.
+  The pinned `.venv` and packaged `artifacts/aimguard-v0.6` model are required
+  for a new installation. An existing local research model takes precedence.
   Source/dependency verification failures are shown instead of bypassed. Model
-  artifacts remain local and are not distributed with the GitHub repository.
+  research artifacts remain local; the inference-only package is distributed.
 - **Couldn't read a replay:** expand its error details. Use a valid CS2 `.dem`,
   check that the file still exists, and try another recording if it is damaged.
 - **First launch can't install dependencies:** an internet connection is needed
@@ -121,8 +127,11 @@ Install and test the web service without touching the detector environment:
 .venv/bin/python -m venv .ui-venv
 .ui-venv/bin/python -m pip install -r requirements-ui-dev.txt
 .ui-venv/bin/python -m pytest -q ui_tests tests/test_local_store.py
-.venv/bin/python -m pytest -q
 ```
+
+Run the broader detector tests in a separate research checkout with
+`requirements.txt` and `python -m pytest -q`. The packaged inference environment
+deliberately contains runtime dependencies only; do not upgrade it for research.
 
 To edit the React interface, use Node.js 24 and two terminals:
 
@@ -147,3 +156,16 @@ combat windows. This was a repeat integration check, not a new evaluation case.
 Desktop and narrow layouts, curve tabs, window switching, file import errors,
 the full evidence report and ZIP download were checked locally. No detector
 features, weights, thresholds or evaluation results changed for the interface.
+
+To recapture the four README screenshots, install `playwright==1.65.2` into
+`.ui-venv`, run `.ui-venv/bin/python -m playwright install chromium`, then run:
+
+```sh
+.ui-venv/bin/python scripts/capture_readme_demo.py --passed path/to/non-flag-report --flagged path/to/flag-report
+```
+
+Use existing completed report directories from the same model. This starts a
+temporary curated local workspace and writes only four PNGs to `docs/images`.
+Names and filenames are pseudonymized and displayed Steam identities are hidden;
+scores and curves are unmodified. Source labels must be verified separately from
+the detector decision before writing screenshot captions.

@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "model_kind": "phase_clean_offline_review",
+  "created_at_utc": "2026-11-18T06:56:06.435451+00:00",
+  "feature_version": "0.6.0",
+  "phase_policy": "explicit-server-phase-v1",
+  "threshold": 0.75,
+  "feature_names": [
+    "p95_speed",
+    "mean_accel",
+    "median_pre_shot_absolute_error_degrees",
+    "median_pre_shot_absolute_relative_rate_dps"
+  ],
+  "configuration": {
+    "weapon_mode": "firearms",
+    "near_shot_seconds": 0.1,
+    "pre_seconds": 0.5,
+    "post_seconds": 0.5,
+    "shot_gap_seconds": 0.5
+  },
+  "hyperparameters": {
+    "C": 1,
+    "class_weight": "balanced",
+    "solver": "lbfgs",
+    "max_iter": 1000,
+    "random_state": 0
+  },
+  "tickrate": 64,
+  "scaler_mean": [
+    3.5741498641123512,
+    6.093797705891909,
+    1.242609555932406,
+    2.334079802234555
+  ],
+  "scaler_scale": [
+    0.5440580562850982,
+    0.6255132295719964,
+    0.5379968095064239,
+    0.40750195612508044
+  ],
+  "coefficients": [
+    0.21282270615252302,
+    0.7431652640208474,
+    -1.7906959479649,
+    -1.1266787133497422
+  ],
+  "intercept": -0.7152486464027976,
+  "code_sha256": {
+    "baseline.py": "b38d5a29d66ec7dd2653e6b5a06037c3d12b9ecdfdd0b45a4d377c71727e97a6",
+    "batch.py": "9814e610a062c6a8122322be0faebfca590a8dfbeb7847e60d4d83bbbbba74d3",
+    "combat.py": "5b699bbef407cf239eaa031c2f14a67a0bd2b538781cbf0c69b10e5b2bb87df3",
+    "core.py": "bac89097835e991413856b1aaf1945f282c3ddb784d143f1433978ac663768a9",
+    "cs2.py": "cb0f3de648e456684114ac4d4c62dd4fd17a1e660684e43acb1908c356f72e94",
+    "development_models.py": "70a6ac7c99ad5f52d12db49d14895764111138c48b8daa3802e4646ac3414657",
+    "gameplay.py": "617cbe64dd6321ce5578d4069fe31ec8bc92b16a6854e1a3ff4bb2012aa25837",
+    "offline_detector.py": "d388aea9e2968622eaec0e558736a3ab100fb9b15f91a9d9f7515fbbbef728be",
+    "phase_audit.py": "c4372c915f1b37b7aa7d71ecaa2eb5dd9caa709ce5960cb74ae7e0e24e641e0e",
+    "phase_development.py": "6bbab42fbb03785dc3ce47dacd2a2da3827440a64bd567c223b01de4df7e06d3",
+    "phase_gameplay.py": "332bd7edd179abddb7ac1b815594aa0379fb12b287f3d98f3b9a76646e291cf0",
+    "review.py": "11e4599427cfa2cdf04981d4305d81635370820bf5921371b29188547728c973",
+    "target_geometry.py": "30b7b4619b3c0336628fe482baa59e052972b4777c9d7c66996a48cfb9c5800f",
+    "target_tracking.py": "4af74d7da47a9978c4a0bae3b9759a2899bf881c9547dbaf70fc801383001e9c",
+    "tracking_baseline.py": "356b52b177b7013f0a88f33aa4ca7eb8d39f7f129eabfbdf3bd940857e8e134d",
+    "tracking_models.py": "f028737c54026569154ebfef49dea337ebf8a7accb9a184d46ce31bb4cc890ac"
+  },
+  "dependencies": {
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "demoparser2": "0.42.0",
+    "matplotlib": "3.11.2"
+  },
+  "python_version": "3.12.10",
+  "note": "Uncalibrated generic-cheating review score. Not confirmed active-aimbot probability. Threshold fixed before holdout extraction; no ban recommendation."
+}

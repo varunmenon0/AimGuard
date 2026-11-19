@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -27,7 +28,7 @@ def main():
     )
     if not engine.exists():
         raise SystemExit(
-            "The detector environment is missing. Complete the README setup first."
+            "The detector environment is missing. Run scripts/setup_local.py with Python 3.12.10 first; see docs/INSTALL.md."
         )
     if not python.exists():
         print("Preparing the separate interface environment…", flush=True)
@@ -84,7 +85,9 @@ def main():
         raise SystemExit("No available local port. Try --port 8900.")
     url = f"http://127.0.0.1:{port}"
     process = subprocess.Popen(
-        [str(python), "-m", "aimguard.local_web", "--port", str(port)], cwd=root
+        [str(python), "-m", "aimguard.local_web", "--port", str(port)],
+        cwd=root,
+        env=dict(os.environ, PYTHONUTF8="1"),
     )
     try:
         for _ in range(180):

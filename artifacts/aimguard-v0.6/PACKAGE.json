@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "purpose": "inference-only",
+  "source_model_sha256": "1cc9bb01d21983c1926cd8434bfc63815d9b07343a5a7f19e56401b39286bdda",
+  "model_sha256": "ff9b7d1a35b2b8281864180d7cf3831a232eb88b0f85cdf9c584efafd33917bd",
+  "parameters_sha256": "09a796037ac70f5b5e1ae4179080bdad42e31718fef50e575bda8c2bba402d44",
+  "python_version": "3.12.10",
+  "license": "MIT",
+  "note": "Weights, preprocessing, threshold and runtime receipts match the research artifact. Research identities and evaluation reservations are omitted. Use for scoring, not fresh evaluation."
+}

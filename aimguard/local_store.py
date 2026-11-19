@@ -16,6 +16,8 @@ import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+from aimguard.model_package import default_model
+
 
 def stamp():
     return datetime.now(UTC).isoformat()
@@ -58,9 +60,7 @@ class Workspace:
             or self.root
             / (".venv/Scripts/python.exe" if os.name == "nt" else ".venv/bin/python")
         ).absolute()
-        self.model = Path(
-            model or self.root / "outputs/xguardian/offline-v06/frozen"
-        ).resolve()
+        self.model = Path(model or default_model(self.root)).resolve()
         self.lock = threading.RLock()
         self.work = queue.Queue()
         self.stopping = False
@@ -103,7 +103,8 @@ class Workspace:
                 ],
                 cwd=self.root,
                 capture_output=True,
-                text=True,
+                encoding="utf-8",
+                env=dict(os.environ, PYTHONUTF8="1"),
                 timeout=45,
                 check=False,
             )
@@ -413,7 +414,11 @@ class Workspace:
                         "--output",
                         job["artifact"],
                     ]
-                env = dict(os.environ, MPLCONFIGDIR=str(self.directory / "matplotlib"))
+                env = dict(
+                    os.environ,
+                    PYTHONUTF8="1",
+                    MPLCONFIGDIR=str(self.directory / "matplotlib"),
+                )
                 with Path(job["log"]).open("w", encoding="utf-8") as log:
                     with self.lock:
                         if job.get("cancel_requested"):

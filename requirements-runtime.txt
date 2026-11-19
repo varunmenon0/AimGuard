@@ -1,0 +1,8 @@
+# Frozen v0.6 inference runtime. Use Python 3.12.10 exactly.
+numpy==2.5.4
+pandas==3.1.1
+scipy==1.18.1
+scikit-learn==1.9.1
+demoparser2==0.42.0
+matplotlib==3.11.2
+zstandard==0.25.0
