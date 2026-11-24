@@ -20,7 +20,12 @@ import { api, score, statusMeta, relativeDate, weaponName } from "./client.js";
 import { Spinner, Badge } from "./components.jsx";
 import Trajectory from "./Trajectory.jsx";
 
-export default function Review({ job, onBack, onCancel }) {
+export default function Review({
+  job,
+  onBack,
+  onCancel,
+  backLabel = "Replay workspace",
+}) {
   const [evidence, setEvidence] = useState(null),
     [windowId, setWindowId] = useState(null),
     [curve, setCurve] = useState(null),
@@ -74,7 +79,7 @@ export default function Review({ job, onBack, onCancel }) {
       <>
         <div className="review-back">
           <button className="text-button" onClick={onBack}>
-            <ArrowLeft size={15} /> Replay workspace
+            <ArrowLeft size={15} /> {backLabel}
           </button>
         </div>
         <div className="page-heading">
@@ -163,7 +168,7 @@ export default function Review({ job, onBack, onCancel }) {
     <>
       <div className="review-back">
         <button className="text-button" onClick={onBack}>
-          <ArrowLeft size={15} /> Replay workspace
+          <ArrowLeft size={15} /> {backLabel}
         </button>
         <span>
           {job.origin === "saved" ? "SAVED ANALYSIS" : "COMPLETED LOCAL ANALYSIS"}

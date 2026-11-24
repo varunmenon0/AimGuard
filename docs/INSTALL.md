@@ -71,7 +71,8 @@ saved reports.
 Click **Add replay**, choose a `.dem` file or use its existing local path, select
 a player and click **Analyze player**. Imported files are limited to 2 GiB.
 Inspect the result, switch curve tabs, browse combat windows, or export evidence.
-Only the selected player is scored. See [the interface guide](LOCAL_INTERFACE.md)
+Choose **Analyze all players** to score the full inspected human roster in a
+saved match summary, or **Analyze player** for the selected player only. See [the interface guide](LOCAL_INTERFACE.md)
 for all controls, storage and troubleshooting.
 
 ## Score without the interface

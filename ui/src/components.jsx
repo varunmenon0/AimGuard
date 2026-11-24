@@ -41,3 +41,21 @@ export function Empty({ icon: Icon = Crosshair, title, children }) {
     </div>
   );
 }
+
+export function MatchBadge({ status }) {
+  const active = ["running", "queued"].includes(status);
+  return (
+    <span
+      className={`badge ${status === "completed" ? "clear" : active ? "neutral" : "review"}`}
+    >
+      {active ? <Spinner /> : <span className="status-dot" />}
+      {{
+        queued: "Match queued",
+        running: "Analyzing match",
+        completed: "Match complete",
+        partial: "Incomplete match",
+        cancelled: "Match cancelled",
+      }[status] || status}
+    </span>
+  );
+}

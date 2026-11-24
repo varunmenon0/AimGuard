@@ -71,6 +71,9 @@ window open; press **Ctrl+C** there to stop the app.
    file or use its existing local path.
 2. Select a player and click **Analyze player**. The app reads the recording,
    builds combat windows, tracks opponent geometry and computes a review score.
+   For a complete match, choose **Analyze all players** instead. It queues every
+   human player and opens a saved summary with progress, flags, non-flags and
+   unresolved results. Open each completed player’s evidence from that summary.
 3. Inspect the result and switch between view angles, angular speed, alignment
    and tracking. Select another combat window or hover over a curve for values.
 4. Use **Analysis history** to reopen a review, **Open full evidence report** for

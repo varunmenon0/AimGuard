@@ -70,12 +70,14 @@ class Workspace:
         self.replays = {}
         self.jobs = {}
         self.metadata = {}
+        self.matches = {}
         self.state_path = self.directory / "workspace.json"
         if self.state_path.exists():
             state = read(self.state_path)
             self.replays = state.get("replays", {})
             self.jobs = state.get("jobs", {})
             self.metadata = state.get("metadata", {})
+            self.matches = state.get("matches", {})
         for job in self.jobs.values():
             if job["status"] in ("queued", "running"):
                 job.update(
@@ -88,7 +90,12 @@ class Workspace:
         with self.lock:
             atomic(
                 self.state_path,
-                {"replays": self.replays, "jobs": self.jobs, "metadata": self.metadata},
+                {
+                    "replays": self.replays,
+                    "jobs": self.jobs,
+                    "metadata": self.metadata,
+                    "matches": self.matches,
+                },
             )
 
     def start(self):
@@ -301,7 +308,7 @@ class Workspace:
             )
         return result
 
-    def enqueue(self, replay_id, steamid=None):
+    def enqueue(self, replay_id, steamid=None, *, match_id=None):
         if not self.health["ready"]:
             raise ValueError(
                 "The frozen analysis engine is unavailable. Open Settings for details."
@@ -315,12 +322,15 @@ class Workspace:
                     and job["kind"] == kind
                     and job["replay_id"] == replay_id
                     and job.get("steamid") == steamid
+                    and job.get("match_id") == match_id
                 ):
                     return self.public_job(job)
-            if (
-                sum(j["status"] in ("queued", "running") for j in self.jobs.values())
-                >= 6
-            ):
+            active_units = {
+                j.get("match_id") or j["id"]
+                for j in self.jobs.values()
+                if j["status"] in ("queued", "running")
+            }
+            if len(active_units) >= 6 and match_id not in active_units:
                 raise ValueError(
                     "The analysis queue is full. Let a current job finish first."
                 )
@@ -354,11 +364,129 @@ class Workspace:
                 "artifact": str(directory / "scoring"),
                 "log": str(directory / "worker.log"),
                 "message": "Waiting for the local analysis engine",
+                "source_fingerprint": [replay["size"], replay["modified_ns"]],
+                "match_id": match_id,
             }
             self.jobs[identity] = job
-            self.save()
-            self.work.put(identity)
+            if match_id is None:
+                self.save()
+                self.work.put(identity)
             return self.public_job(job)
+
+    def enqueue_match(self, replay_id):
+        with self.lock:
+            replay = self.replay(replay_id)
+            for match in self.matches.values():
+                if match["replay_id"] == replay_id and self.match(match["id"])[
+                    "status"
+                ] in ("queued", "running"):
+                    return self.match(match["id"])
+            players = self.metadata.get(replay_id, {}).get("players", [])
+            if not players:
+                raise ValueError(
+                    "Inspect the replay's player roster before analyzing a match."
+                )
+            ids = [p["steamid"] for p in players]
+            if len(set(ids)) != len(ids) or any(
+                not isinstance(s, str)
+                or not s.isdigit()
+                or int(s) >> 32 != 0x01100001
+                or not int(s) & 0xFFFFFFFF
+                for s in ids
+            ):
+                raise ValueError(
+                    "The inspected roster contains unsupported or duplicate identities."
+                )
+            if len(ids) > 64:
+                raise ValueError(
+                    "This replay has more than 64 human players; review players individually."
+                )
+            identity = uuid.uuid4().hex
+            match = {
+                "id": identity,
+                "kind": "match",
+                "replay_id": replay_id,
+                "replay_name": replay["name"],
+                "map": replay["map"],
+                "created": stamp(),
+                "model_sha256": self.health.get("model_sha256"),
+                "job_ids": [],
+            }
+            self.matches[identity] = match
+            try:
+                for steamid in ids:
+                    job = self.enqueue(replay_id, steamid, match_id=identity)
+                    match["job_ids"].append(job["id"])
+            except (OSError, ValueError):
+                for job_id in match["job_ids"]:
+                    self.jobs.pop(job_id)
+                del self.matches[identity]
+                self.save()
+                raise
+            self.save()
+            for job_id in match["job_ids"]:
+                self.work.put(job_id)
+            return self.match(identity)
+
+    def match(self, identity):
+        with self.lock:
+            if identity not in self.matches:
+                raise KeyError("Match review not found.")
+            match = self.matches[identity]
+            jobs = [self.public_job(self.jobs[j]) for j in match["job_ids"]]
+            counts = {
+                "total": len(jobs),
+                "completed": 0,
+                "flagged": 0,
+                "not_flagged": 0,
+                "insufficient": 0,
+                "failed": 0,
+                "cancelled": 0,
+                "interrupted": 0,
+                "queued": 0,
+                "running": 0,
+            }
+            for job in jobs:
+                counts[job["status"]] += 1
+                if job["status"] == "completed":
+                    decision = job.get("prediction", {}).get("status")
+                    if decision == "flag_for_review":
+                        counts["flagged"] += 1
+                    elif decision == "not_flagged":
+                        counts["not_flagged"] += 1
+                    else:
+                        counts["insufficient"] += 1
+            active = counts["queued"] + counts["running"]
+            status = (
+                ("running" if counts["running"] or counts["completed"] else "queued")
+                if active
+                else (
+                    "cancelled"
+                    if match.get("cancel_requested")
+                    else "partial"
+                    if counts["failed"] + counts["cancelled"] + counts["interrupted"]
+                    else "completed"
+                )
+            )
+            return dict(
+                match,
+                status=status,
+                counts=counts,
+                jobs=jobs,
+                player=f"Match review · {counts['total']} players",
+            )
+
+    def cancel_match(self, identity):
+        with self.lock:
+            match = self.matches.get(identity)
+            if not match:
+                raise KeyError("Match review not found.")
+            if self.match(identity)["status"] not in ("queued", "running"):
+                return
+            match["cancel_requested"] = True
+            for job_id in match["job_ids"]:
+                self.cancel(job_id)
+            self.save()
 
     def cancel(self, identity):
         with self.lock:
@@ -389,6 +517,12 @@ class Workspace:
                 self.save()
             try:
                 replay = self.replay(job["replay_id"])
+                if job.get(
+                    "source_fingerprint", [replay["size"], replay["modified_ns"]]
+                ) != [replay["size"], replay["modified_ns"]]:
+                    raise ValueError(
+                        "The replay changed after this job was queued. Inspect it again and start a new review."
+                    )
                 directory = Path(job["log"]).parent
                 if job["kind"] == "inspect":
                     target = directory / "inspection.json"

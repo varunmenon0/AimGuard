@@ -67,8 +67,8 @@ does not establish visibility or the player's intended target.
 
 **Analysis history** stores new runs and imports existing compatible saved
 reports. Saved reports are displayed without recomputing them; only results
-matching this frozen model are imported. Analysis is for the selected player,
-not every player in a match.
+matching this frozen model are imported. Use **Analyze player** for one selected player, or **Analyze all players** for a
+complete match review.
 
 **Export evidence** downloads a ZIP with the prediction, tracking, event and
 report artifacts, plus self-contained HTML evidence. The replay itself is not
@@ -126,7 +126,7 @@ Install and test the web service without touching the detector environment:
 ```sh
 .venv/bin/python -m venv .ui-venv
 .ui-venv/bin/python -m pip install -r requirements-ui-dev.txt
-.ui-venv/bin/python -m pytest -q ui_tests tests/test_local_store.py
+.ui-venv/bin/python -m pytest -q ui_tests tests/test_local_store.py tests/test_match_review.py
 ```
 
 Run the broader detector tests in a separate research checkout with
@@ -169,3 +169,38 @@ temporary curated local workspace and writes only four PNGs to `docs/images`.
 Names and filenames are pseudonymized and displayed Steam identities are hidden;
 scores and curves are unmodified. Source labels must be verified separately from
 the detector decision before writing screenshot captions.
+
+## Complete-match review
+
+Choose a replay, wait for its roster, and click **Analyze all players**. Every
+human identity returned by the inspector is included, including disconnected
+players; short bot identities are excluded. Up to 64 human players are supported.
+The frozen detector runs separately for each player, one at a time. A full match
+can take several minutes because the existing pipeline rereads the demo for each
+player. This feature changes orchestration, not the detector or its threshold.
+
+The summary shows the number of reviews completed, review flags, non-flags, unresolved outcomes
+and pending players. Failed, interrupted, cancelled and insufficient-evidence
+reviews never count as non-flags. A completed match means processing finished,
+not that the match is legitimate. **View evidence** opens a completed player's
+curves and export controls; **Match review** returns to the summary.
+
+The whole match appears as one entry in history. Child reviews are reached from
+that entry. Failed or cancelled rows offer **View details** for their status and
+error information. History's review-flags filter also includes matches containing flags.
+Refreshing the page or restarting the app preserves the match record. An app
+restart marks unfinished jobs interrupted rather than silently resuming them.
+Start a new match review to rerun it. Repeated clicks during an active match
+return the same review; a new run after it finishes creates fresh player outputs.
+
+**Cancel remaining** stops this match's active player and cancels its waiting
+players, retaining completed results and leaving unrelated jobs alone. Queue
+capacity is six individual reviews or match groups, so a normal ten-player match
+is admitted as one group. Batch admission is saved before execution starts; a
+failed admission does not run a partial match. Replacing a replay after admission
+causes queued players to fail with a file-changed message instead of scoring it
+against the old inspected roster.
+
+Match records and player outputs remain local in `outputs/local-ui/`. Whole-match
+functional testing does not create additional labeled evaluation results or
+change the published detection/false-positive measurements.

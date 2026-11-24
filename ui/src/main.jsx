@@ -29,6 +29,7 @@ import { Spinner, Empty } from "./components.jsx";
 import { JobTable, HistoryPage, Settings } from "./LibraryPages.jsx";
 import ImportDialog from "./ImportDialog.jsx";
 import Review from "./Review.jsx";
+import MatchReview from "./MatchReview.jsx";
 import "./style.css";
 
 function Brand() {
@@ -47,7 +48,8 @@ function Brand() {
 function App() {
   const [boot, setBoot] = useState(null),
     [replays, setReplays] = useState([]),
-    [jobs, setJobs] = useState([]);
+    [jobs, setJobs] = useState([]),
+    [matches, setMatches] = useState([]);
   const [page, setPage] = useState("workspace"),
     [selected, setSelected] = useState(null),
     [player, setPlayer] = useState(null),
@@ -79,14 +81,16 @@ function App() {
       .then(async (data) => {
         setSessionToken(data.token);
         setBoot(data);
-        const [files, history] = await Promise.all([
+        const [files, history, matchHistory] = await Promise.all([
           api("/api/replays"),
           api("/api/jobs"),
+          api("/api/matches"),
         ]);
         setReplays(files);
         setJobs(history);
+        setMatches(matchHistory);
         const last = localStorage.getItem("aimguard:last-analysis");
-        if (history.some((j) => j.id === last)) setActiveId(last);
+        if ([...history, ...matchHistory].some((j) => j.id === last)) setActiveId(last);
       })
       .catch(() => {
         setConnected(false);
@@ -114,9 +118,13 @@ function App() {
     let alive = true;
     const timer = setInterval(async () => {
       try {
-        const history = await api("/api/jobs");
+        const [history, matchHistory] = await Promise.all([
+          api("/api/jobs"),
+          api("/api/matches"),
+        ]);
         if (alive) {
           setJobs(history);
+          setMatches(matchHistory);
           setConnected(true);
         }
         if (inspection) {
@@ -183,6 +191,22 @@ function App() {
       setStarting(false);
     }
   };
+  const startMatch = async () => {
+    setStarting(true);
+    try {
+      const match = await api("/api/matches", {
+        method: "POST",
+        body: JSON.stringify({ replay_id: selected }),
+      });
+      setMatches((previous) => [match, ...previous.filter((m) => m.id !== match.id)]);
+      setJobs(await api("/api/jobs"));
+      open(match);
+    } catch (e) {
+      notify(e.message);
+    } finally {
+      setStarting(false);
+    }
+  };
   const refresh = async () => {
     setRefreshing(true);
     try {
@@ -205,7 +229,11 @@ function App() {
     localStorage.removeItem("aimguard:last-analysis");
     setPage("workspace");
   };
-  const current = jobs.find((j) => j.id === activeId);
+  const current =
+    jobs.find((j) => j.id === activeId) || matches.find((m) => m.id === activeId);
+  const historyItems = [...matches, ...jobs.filter((j) => !j.match_id)].sort((a, b) =>
+    b.created.localeCompare(a.created),
+  );
   const selectedReplay = replays.find((r) => r.id === selected);
   const busy = jobs.filter((j) => ["queued", "running"].includes(j.status));
   const maps = [...new Set(replays.map((r) => r.map).filter(Boolean))].sort();
@@ -239,7 +267,7 @@ function App() {
             >
               <Icon size={17} />
               <span>{label}</span>
-              {key === "history" && <small>{jobs.length || "—"}</small>}
+              {key === "history" && <small>{historyItems.length || "—"}</small>}
             </button>
           ))}
         </nav>
@@ -270,9 +298,11 @@ function App() {
                 ? "HISTORY"
                 : page === "settings"
                   ? "SETTINGS"
-                  : current
-                    ? "PLAYER REVIEW"
-                    : "REPLAY ANALYSIS"}
+                  : current?.kind === "match"
+                    ? "MATCH REVIEW"
+                    : current
+                      ? "PLAYER REVIEW"
+                      : "REPLAY ANALYSIS"}
             </strong>
           </div>
           <div className={`connection ${connected ? "" : "connection-lost"}`}>
@@ -301,11 +331,31 @@ function App() {
           ) : page === "settings" ? (
             <Settings boot={boot} count={replays.length} />
           ) : page === "history" ? (
-            <HistoryPage jobs={jobs} onOpen={open} onNew={newReview} />
+            <HistoryPage jobs={historyItems} onOpen={open} onNew={newReview} />
+          ) : current?.kind === "match" ? (
+            <MatchReview
+              match={current}
+              onBack={newReview}
+              onOpen={open}
+              onCancel={async () => {
+                try {
+                  await api(`/api/matches/${current.id}/cancel`, { method: "POST" });
+                  setMatches(await api("/api/matches"));
+                  setJobs(await api("/api/jobs"));
+                } catch (e) {
+                  notify(e.message);
+                }
+              }}
+            />
           ) : current ? (
             <Review
               job={current}
-              onBack={newReview}
+              onBack={() =>
+                current.match_id
+                  ? open(matches.find((m) => m.id === current.match_id))
+                  : newReview()
+              }
+              backLabel={current.match_id ? "Match review" : "Replay workspace"}
               onCancel={async () => {
                 try {
                   await api(`/api/jobs/${current.id}/cancel`, {
@@ -522,6 +572,15 @@ function App() {
                           )}{" "}
                           Analyze player <ArrowRight size={16} />
                         </button>
+                        <button
+                          className="button secondary full match-start"
+                          disabled={
+                            !roster?.players?.length || starting || !boot.model.ready
+                          }
+                          onClick={startMatch}
+                        >
+                          Analyze all players <span>{roster?.players?.length || 0}</span>
+                        </button>
                         <p>
                           <ShieldCheck size={12} /> Frozen detector ·{" "}
                           {boot.model.tickrate || 64} Hz analysis
@@ -538,7 +597,7 @@ function App() {
                     View history <ArrowUpRight size={14} />
                   </button>
                 </div>
-                <JobTable jobs={jobs.slice(0, 4)} onOpen={open} />
+                <JobTable jobs={historyItems.slice(0, 4)} onOpen={open} />
               </section>
             </>
           )}

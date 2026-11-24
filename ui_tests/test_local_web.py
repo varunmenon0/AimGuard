@@ -93,3 +93,36 @@ def test_missing_reports_and_missing_bundle_are_explicit(client):
     assert c.get("/api/jobs/unknown/evidence").status_code == 404
     assert c.get("/reports/unknown/prediction.json").status_code == 404
     assert c.get("/").status_code == 503
+
+
+def test_match_api_admits_ten_players_and_supports_cancel(client):
+    c, ws = client
+    connect(c)
+    source = ws.root / "match.dem"
+    source.write_bytes(b"PBDEMS2\0demo")
+    r = ws.add_replay(source)
+    ws.metadata[r["id"]] = {
+        "players": [
+            {"steamid": str(76561199000000001 + i), "name": f"Player {i}"}
+            for i in range(10)
+        ]
+    }
+    response = c.post("/api/matches", json={"replay_id": r["id"]})
+    assert response.status_code == 200
+    match = response.json()
+    assert match["counts"]["total"] == 10
+    assert (
+        c.post("/api/matches", json={"replay_id": r["id"]}).json()["id"] == match["id"]
+    )
+    assert len(c.get("/api/matches").json()) == 1
+    assert c.get("/api/matches/" + match["id"]).json()["counts"]["queued"] == 10
+    result = c.post("/api/matches/" + match["id"] + "/cancel").json()
+    assert result["status"] == "cancelled" and result["counts"]["cancelled"] == 10
+    assert c.get("/api/matches/missing").status_code == 404
+
+
+def test_match_requires_session_and_inspected_roster(client):
+    c, _ = client
+    assert c.post("/api/matches", json={"replay_id": "missing"}).status_code == 403
+    connect(c)
+    assert c.post("/api/matches", json={"replay_id": "missing"}).status_code == 404

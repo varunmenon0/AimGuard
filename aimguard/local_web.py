@@ -20,8 +20,11 @@ class LocalReplay(BaseModel):
     path: str = Field(min_length=1, max_length=4096)
 
 
-class Analysis(BaseModel):
+class MatchAnalysis(BaseModel):
     replay_id: str = Field(min_length=1, max_length=64)
+
+
+class Analysis(MatchAnalysis):
     steamid: str = Field(pattern=r"^\d{17}$")
 
 
@@ -186,6 +189,28 @@ def create_app(root=None, workspace=None, start_worker=True):
     @app.post("/api/analyses")
     def analyze(body: Analysis):
         return ws.enqueue(body.replay_id, body.steamid)
+
+    @app.post("/api/matches")
+    def analyze_match(body: MatchAnalysis):
+        return ws.enqueue_match(body.replay_id)
+
+    @app.get("/api/matches")
+    def matches():
+        with ws.lock:
+            return sorted(
+                [ws.match(identity) for identity in ws.matches],
+                key=lambda m: m["created"],
+                reverse=True,
+            )
+
+    @app.get("/api/matches/{identity}")
+    def match(identity: str):
+        return ws.match(identity)
+
+    @app.post("/api/matches/{identity}/cancel")
+    def cancel_match(identity: str):
+        ws.cancel_match(identity)
+        return ws.match(identity)
 
     @app.get("/api/jobs")
     def jobs():

@@ -8,7 +8,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { score, relativeDate } from "./client.js";
-import { Badge } from "./components.jsx";
+import { Badge, MatchBadge } from "./components.jsx";
 
 export function JobTable({ jobs, onOpen }) {
   return (
@@ -34,11 +34,17 @@ export function JobTable({ jobs, onOpen }) {
             </div>
             <span className="job-map">{job.map || "CS2"}</span>
             <span className="score-cell">
-              {score(job.prediction)}
-              <small>/100</small>
+              {job.kind === "match"
+                ? `${job.counts.completed}/${job.counts.total}`
+                : score(job.prediction)}
+              <small>{job.kind === "match" ? "done" : "/100"}</small>
             </span>
             <div>
-              <Badge prediction={job.prediction} status={job.status} />
+              {job.kind === "match" ? (
+                <MatchBadge status={job.status} />
+              ) : (
+                <Badge prediction={job.prediction} status={job.status} />
+              )}
               <small className="job-time">
                 {job.origin === "saved" ? "Saved report" : relativeDate(job.created)}
               </small>
@@ -65,8 +71,8 @@ export function HistoryPage({ jobs, onOpen, onNew }) {
         .toLowerCase()
         .includes(query.toLowerCase()) &&
       (filter === "all" ||
-        (filter === "review" && j.prediction?.flagged) ||
-        (filter === "local" && j.origin === "local")),
+        (filter === "review" && (j.prediction?.flagged || j.counts?.flagged > 0)) ||
+        (filter === "local" && (j.origin === "local" || j.kind === "match"))),
   );
   return (
     <>
